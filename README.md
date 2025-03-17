@@ -16,8 +16,7 @@ A simple and efficient file server implemented in C.
 ```
 cileserver/
 ├── config/              # Configuration files
-│   ├── cileserver.conf
-│   └── cileserver.conf.example
+│   └── cileserver.conf  # Example configuration (not tracked in git)
 ├── docs/                # Documentation
 │   ├── architecture.md
 │   ├── client.md
@@ -29,16 +28,19 @@ cileserver/
 │   ├── server.md
 │   └── TODO.md
 ├── include/             # Header files
-├── logs/                # Log files
+├── logs/                # Log files (not tracked in git)
 ├── src/                 # Source code
 ├── test_files/          # Test files
 ├── tests/               # Test scripts
+├── builddir/            # Build output directory (not tracked in git)
 ├── .gitignore
 ├── install.sh           # Installation script
 ├── Makefile             # Legacy build system
 ├── meson.build          # Meson build system
 └── README.md            # This file
 ```
+
+> **Note:** The `config/cileserver.conf` file is not tracked in git. You'll need to create your own configuration file based on the example below.
 
 ## Building
 
@@ -116,7 +118,7 @@ You can also specify the config file path directly as the first argument:
 
 ## Configuration
 
-The server can be configured using the `config/cileserver.conf` file. If this file doesn't exist, default values will be used.
+The server requires a configuration file at `config/cileserver.conf`. This file is not included in the git repository for security reasons, so you'll need to create it yourself.
 
 Example configuration:
 
