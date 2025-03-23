@@ -65,16 +65,6 @@ meson compile -C builddir
 
 This will create the executables in the `builddir` directory.
 
-### Using Make (Legacy)
-
-To build using the legacy Makefile:
-
-```bash
-make
-```
-
-This will create the executables in the `bin` directory.
-
 ## Running
 
 ### Server
