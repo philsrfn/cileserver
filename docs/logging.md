@@ -1,4 +1,4 @@
-# CileServer Logging
+# Logging
 
 ## Overview
 

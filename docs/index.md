@@ -1,4 +1,4 @@
-# CileServer Documentation
+# Documentation
 
 ## Introduction
 

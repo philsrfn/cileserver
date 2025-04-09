@@ -1,4 +1,4 @@
-# CileServer Configuration
+# Configuration
 
 ## Overview
 

@@ -1,4 +1,4 @@
-# CileServer Architecture
+# Architecture
 
 ## Overview
 
