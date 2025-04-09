@@ -1,24 +1,13 @@
 title: CileServer Documentation
 description: Documentation for CileServer
-theme: just-the-docs
+theme: minima
 url: "https://phneutral26.github.io/cileserver"
 
-# Enable or disable the site search
-search_enabled: true
-
-# Aux links for the upper right navigation
-aux_links:
-  "GitHub":
-    - "//github.com/phneutral26/cileserver"
-
-# Color scheme currently only supports "dark" or nil (default)
-color_scheme: dark
-
-# Footer content
-footer_content: "Copyright &copy; 2025 CileServer. Distributed under the MIT License."
-
-# Enable or disable heading anchors
-heading_anchors: true
+# Build settings
+markdown: kramdown
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
 
 # Enable or disable the site search
 search_enabled: true
@@ -27,9 +16,6 @@ search_enabled: true
 aux_links:
   "GitHub":
     - "//github.com/phneutral26/cileserver"
-
-# Color scheme currently only supports "dark" or nil (default)
-color_scheme: dark
 
 # Footer content
 footer_content: "Copyright &copy; 2025 CileServer. Distributed under the MIT License."
