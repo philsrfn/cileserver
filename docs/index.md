@@ -1,103 +1,100 @@
 # CileServer
 
-## Intro
+## About
 
-CileServer is a high-performance, multi-threaded file server written in C. Designed with efficiency and reliability in mind, it provides a robust platform for file operations over a custom binary protocol. Whether you need to share files across a network or build a distributed file system, CileServer offers the perfect foundation.
+CileServer is a high-performance, multi-threaded file server written in C. It provides a robust platform for file operations over a custom binary protocol, perfect for file sharing and distributed file systems.
 
 ## Features
 
-- 🚀 **High Performance**: Multi-threaded architecture for optimal throughput
-- 🔒 **Security**: Optional authentication and secure file operations
-- 📝 **Logging**: Comprehensive logging system with configurable levels
-- ⚙️ **Configurable**: Extensive configuration options for fine-tuning
-- 📁 **File Operations**: Full suite of file and directory operations
-- 🔄 **Binary Protocol**: Efficient, custom protocol for fast transfers
+- 🚀 **High Performance**: Multi-threaded architecture
+- 🔒 **Security**: Optional authentication
+- 📝 **Logging**: Comprehensive logging system
+- ⚙️ **Configurable**: Extensive configuration options
+- 📁 **File Operations**: Full suite of operations
+- 🔄 **Binary Protocol**: Efficient transfers
 
-## Docs
-
-- [Architecture](architecture.md) - System design and components
-- [Server](server.md) - Server implementation and operation
-- [Client](client.md) - Client usage and features
-- [Protocol](protocol.md) - Binary protocol specification
-- [File Operations](file_operations.md) - File system operations
-- [Configuration](configuration.md) - Configuration system
-- [Logging](logging.md) - Logging system
-
-## Quick Start
+## Install
 
 ### Prerequisites
 
 - C compiler (GCC or Clang)
 - Meson build system
-- POSIX-compliant operating system
+- POSIX-compliant OS
 
-### Build
+### Quick Install
 
 ```bash
-# Quick install
 ./install.sh
+```
 
-# Manual build
+### Manual Build
+
+```bash
+# Setup build
 meson setup builddir
+
+# Build
 meson compile -C builddir
 ```
 
-### Run Server
+## Start
+
+### Server
 
 ```bash
-# Start with default configuration
+# Default config
 ./builddir/cileserver
 
-# Start on a specific port
+# Custom port
 ./builddir/cileserver -p 8080
 
-# Use custom configuration
+# Custom config
 ./builddir/cileserver -c /path/to/config.conf
 ```
 
-### Use Client
+### Client
 
 ```bash
-# List directory contents
+# List files
 ./builddir/cileclient list /
 
-# Upload a file
-./builddir/cileclient put /remote_file.txt local_file.txt
+# Upload
+./builddir/cileclient put /remote.txt local.txt
 
-# Download a file
-./builddir/cileclient get /remote_file.txt local_file.txt
-
-# Create a directory
-./builddir/cileclient mkdir /new_directory
-
-# Delete a file
-./builddir/cileclient delete /remote_file.txt
+# Download
+./builddir/cileclient get /remote.txt local.txt
 ```
+
+## Docs
+
+- [Server](server.md) - Server details and configuration
+- [Client](client.md) - Client usage and commands
+- [Protocol](protocol.md) - Binary protocol specification
+- [File Operations](file_operations.md) - File system operations
+- [Configuration](configuration.md) - Configuration options
+- [Logging](logging.md) - Logging system
+- [Architecture](architecture.md) - System design
 
 ## Structure
 
 ```
 cileserver/
 ├── config/              # Configuration files
-│   ├── cileserver.conf
-│   └── cileserver.conf.example
 ├── docs/                # Documentation
 ├── include/             # Header files
 ├── logs/                # Log files
 ├── src/                 # Source code
 ├── test_files/          # Test files
 ├── tests/               # Test scripts
-├── .gitignore
 ├── install.sh           # Installation script
-├── Makefile             # Legacy build system
-├── meson.build          # Meson build system
+├── meson.build          # Build system
 └── README.md
 ```
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+We welcome contributions! See [Contributing Guidelines](CONTRIBUTING.md) for details.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+MIT License - see [LICENSE](LICENSE) for details. 
