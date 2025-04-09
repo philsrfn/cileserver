@@ -62,15 +62,15 @@ CileServer is a high-performance, multi-threaded file server designed for effici
 ### Interaction
 
 ```mermaid
-graph TD
-    A[Client] -->|TCP/IP| B[Server]
-    B -->|Protocol| C[Protocol Handler]
-    C -->|Operations| D[File System]
-    C -->|Logging| E[Logger]
-    B -->|Configuration| F[Config Manager]
-    F -->|Settings| B
-    F -->|Settings| C
-    F -->|Settings| E
+flowchart TD
+    Client[Client] -->|TCP/IP| Server[Server]
+    Server -->|Protocol| Protocol[Protocol Handler]
+    Protocol -->|Operations| Files[File System]
+    Protocol -->|Logging| Logger[Logger]
+    Server -->|Configuration| Config[Config Manager]
+    Config -->|Settings| Server
+    Config -->|Settings| Protocol
+    Config -->|Settings| Logger
 ```
 
 ### Flow
