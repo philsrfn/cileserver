@@ -1,6 +1,6 @@
 title: CileServer Documentation
 description: Documentation for CileServer
-theme: minima
+theme: jekyll-theme-leap-day
 url: "https://phneutral26.github.io/cileserver"
 
 # Build settings
