@@ -1,6 +1,6 @@
 title: Documentation
 description: Documentation for CileServer
-theme: just-the-docs
+remote_theme: pmarsceill/just-the-docs
 url: "https://phneutral26.github.io/cileserver"
 
 # Build settings
