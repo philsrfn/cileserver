@@ -1,12 +1,20 @@
-# Protocol
+# CileServer Protocol Specification
 
 ## Overview
 
-CileServer uses a custom binary protocol for communication between the client and server. The protocol is designed to be simple, efficient, and extensible.
+CileServer implements a custom binary protocol optimized for efficient file operations over TCP/IP. The protocol is designed to be lightweight, fast, and reliable, with built-in support for error handling and extensibility.
+
+## Protocol Features
+
+- 🚀 **Efficient**: Binary format for minimal overhead
+- 🔒 **Reliable**: Built-in error detection and handling
+- 📦 **Compact**: Optimized message structure
+- 🔄 **Extensible**: Easy to add new commands
+- ⚡ **Fast**: Minimal parsing overhead
 
 ## Message Format
 
-### Request Format
+### Request Message
 
 ```
 +--------+------------+------------+------+------+
@@ -15,13 +23,14 @@ CileServer uses a custom binary protocol for communication between the client an
 +--------+------------+------------+------+------+
 ```
 
-- **Command** (1 byte): The operation to perform
-- **Path Length** (2 bytes): Length of the path string in bytes
-- **Data Length** (4 bytes): Length of the data in bytes
-- **Path** (variable): The file or directory path (not null-terminated)
-- **Data** (variable): Optional data for operations like PUT
+Field Descriptions:
+- **Command** (1 byte): Operation identifier
+- **Path Length** (2 bytes): Length of path string (network byte order)
+- **Data Length** (4 bytes): Length of data payload (network byte order)
+- **Path** (variable): UTF-8 encoded path string
+- **Data** (variable): Optional payload for operations like PUT
 
-### Response Format
+### Response Message
 
 ```
 +--------+------------+------+
@@ -30,11 +39,12 @@ CileServer uses a custom binary protocol for communication between the client an
 +--------+------------+------+
 ```
 
-- **Status** (1 byte): Result of the operation (0 = success, 1 = error)
-- **Data Length** (4 bytes): Length of the data in bytes
-- **Data** (variable): Response data or error message
+Field Descriptions:
+- **Status** (1 byte): Operation result code
+- **Data Length** (4 bytes): Length of response data (network byte order)
+- **Data** (variable): Response payload or error message
 
-## Commands
+## Command Reference
 
 | Command | Value | Description                   | Request Data                | Response Data               |
 |---------|-------|-------------------------------|----------------------------|----------------------------|
@@ -58,55 +68,84 @@ CileServer uses a custom binary protocol for communication between the client an
 
 ```c
 typedef struct {
-    char name[256];
-    size_t size;
-    time_t modified_time;
-    int is_directory;
+    char name[256];        // File/directory name (null-terminated)
+    size_t size;           // File size in bytes (0 for directories)
+    time_t modified_time;  // Last modification timestamp
+    int is_directory;      // 1 if directory, 0 if file
 } file_info_t;
 ```
 
-- **name**: File or directory name
-- **size**: File size in bytes (0 for directories)
-- **modified_time**: Last modification time
-- **is_directory**: 1 if directory, 0 if file
+## Protocol Flow
+
+### Successful Operation
+
+1. Client sends request with command and parameters
+2. Server processes request
+3. Server sends response with status OK and result data
+4. Client processes response
+
+### Error Handling
+
+1. Client sends request
+2. Server detects error
+3. Server sends response with status ERROR and error message
+4. Client handles error appropriately
 
 ## Examples
 
 ### List Directory
 
 Request:
-- Command: 0x01 (LIST)
-- Path: "/documents"
-- Data: None
+```c
+struct {
+    uint8_t command = 0x01;        // LIST
+    uint16_t path_len = 0x000B;    // "/documents"
+    uint32_t data_len = 0x00000000;
+    char path[] = "/documents";
+} request;
+```
 
 Response:
-- Status: 0x00 (OK)
-- Data: Array of file_info_t structures
-
-### Get File
-
-Request:
-- Command: 0x02 (GET)
-- Path: "/documents/file.txt"
-- Data: None
-
-Response:
-- Status: 0x00 (OK)
-- Data: Contents of file.txt
-
-### Put File
-
-Request:
-- Command: 0x03 (PUT)
-- Path: "/documents/newfile.txt"
-- Data: Contents of newfile.txt
-
-Response:
-- Status: 0x00 (OK)
-- Data: "File written successfully"
+```c
+struct {
+    uint8_t status = 0x00;         // OK
+    uint32_t data_len = 0x00000100;
+    file_info_t entries[] = {
+        { "file1.txt", 1024, 1234567890, 0 },
+        { "subdir", 0, 1234567890, 1 }
+    };
+} response;
+```
 
 ### Error Response
 
 Response:
-- Status: 0x01 (ERROR)
-- Data: Error message (e.g., "File not found") 
+```c
+struct {
+    uint8_t status = 0x01;         // ERROR
+    uint32_t data_len = 0x0000000D;
+    char message[] = "File not found";
+} response;
+```
+
+## Best Practices
+
+1. **Error Handling**
+   - Always check response status
+   - Handle network errors gracefully
+   - Implement retry logic for transient failures
+
+2. **Performance**
+   - Use appropriate buffer sizes
+   - Implement connection pooling
+   - Consider compression for large files
+
+3. **Security**
+   - Validate all input data
+   - Implement proper authentication
+   - Use secure connections (TLS)
+
+4. **Implementation**
+   - Use network byte order for multi-byte values
+   - Handle partial reads/writes
+   - Implement proper timeouts 

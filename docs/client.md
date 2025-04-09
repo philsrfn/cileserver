@@ -1,132 +1,170 @@
-# Client
+# CileClient: Command-Line File Management
 
 ## Overview
 
-The CileServer client (`cileclient`) is a command-line tool for interacting with the CileServer. It provides commands for listing directories, uploading and downloading files, creating directories, and deleting files.
+CileClient is a powerful command-line interface for interacting with CileServer. Designed for both interactive use and scripting, it provides a comprehensive set of commands for managing files and directories on the server. Whether you're a system administrator or a developer, CileClient offers a flexible and efficient way to handle remote file operations.
 
-## Usage
+## Quick Start
+
+```bash
+# Connect to a remote server
+./builddir/cileclient -h myserver.com -p 8080 list /
+
+# Upload a file
+./builddir/cileclient put /remote/path/file.txt local_file.txt
+
+# Download a file
+./builddir/cileclient get /remote/path/file.txt local_file.txt
+```
+
+## Command Reference
+
+### Basic Usage
 
 ```
 ./builddir/cileclient [OPTIONS] COMMAND [ARGS]
 ```
 
-## Options
+### Connection Options
 
 | Option           | Description                                | Default Value |
 |------------------|--------------------------------------------|---------------|
 | -h, --host HOST  | Server hostname                           | localhost     |
-| -p, --port PORT  | Server port                               | 9090          |
+| -p, --port PORT  | Server port                               | 8080          |
 
-## Commands
+### Available Commands
 
-### List Directory
+#### List Directory Contents
 
-Lists the contents of a directory on the server.
-
-```
+```bash
 ./builddir/cileclient list [PATH]
 ```
 
-If PATH is not specified, it defaults to the root directory (`/`).
+Lists files and directories at the specified path. If PATH is omitted, lists the root directory.
 
-Example:
-```
+Examples:
+```bash
+# List root directory
 ./builddir/cileclient list /
+
+# List specific directory
 ./builddir/cileclient list /documents
 ```
 
-### Download File
+#### Download Files
 
-Downloads a file from the server to the local file system.
-
-```
+```bash
 ./builddir/cileclient get REMOTE_PATH LOCAL_PATH
 ```
 
-Example:
-```
-./builddir/cileclient get /documents/file.txt ~/Downloads/file.txt
+Downloads a file from the server to your local system.
+
+Examples:
+```bash
+# Download a file
+./builddir/cileclient get /documents/report.pdf ~/Downloads/report.pdf
+
+# Download to current directory
+./builddir/cileclient get /data/sample.txt .
 ```
 
-### Upload File
+#### Upload Files
 
-Uploads a file from the local file system to the server.
-
-```
+```bash
 ./builddir/cileclient put REMOTE_PATH LOCAL_PATH
 ```
 
-Example:
-```
-./builddir/cileclient put /documents/newfile.txt ~/Documents/myfile.txt
-```
+Uploads a file from your local system to the server.
 
-### Delete File or Directory
+Examples:
+```bash
+# Upload a file
+./builddir/cileclient put /backup/data.txt ~/Documents/data.txt
 
-Deletes a file or directory on the server.
-
-```
-./builddir/cileclient delete PATH
+# Upload from current directory
+./builddir/cileclient put /uploads/image.jpg ./photo.jpg
 ```
 
-Example:
-```
-./builddir/cileclient delete /documents/oldfile.txt
-```
+#### Create Directories
 
-### Create Directory
-
-Creates a new directory on the server.
-
-```
+```bash
 ./builddir/cileclient mkdir PATH
 ```
 
-Example:
-```
-./builddir/cileclient mkdir /documents/newdir
+Creates a new directory on the server.
+
+Examples:
+```bash
+# Create a directory
+./builddir/cileclient mkdir /projects/new_project
+
+# Create nested directories
+./builddir/cileclient mkdir /data/2024/04
 ```
 
-## Examples
+#### Delete Files or Directories
 
-### List the root directory
-```
-./builddir/cileclient list /
-```
-
-### Upload a file
-```
-./builddir/cileclient put /test.txt test_files/test.txt
+```bash
+./builddir/cileclient delete PATH
 ```
 
-### Download a file
-```
-./builddir/cileclient get /test.txt test_files/downloaded.txt
+Removes a file or directory from the server.
+
+Examples:
+```bash
+# Delete a file
+./builddir/cileclient delete /temp/old_file.txt
+
+# Delete a directory
+./builddir/cileclient delete /backup/old_version
 ```
 
-### Create a directory
-```
-./builddir/cileclient mkdir /test_dir
+## Advanced Usage
+
+### Scripting Examples
+
+```bash
+#!/bin/bash
+
+# Upload multiple files
+for file in *.txt; do
+    ./builddir/cileclient put "/backup/$file" "$file"
+done
+
+# Backup directory
+./builddir/cileclient mkdir "/backup/$(date +%Y-%m-%d)"
+./builddir/cileclient put "/backup/$(date +%Y-%m-%d)/data.tar.gz" "data.tar.gz"
 ```
 
-### List a directory
-```
-./builddir/cileclient list /test_dir
-```
+### Error Handling
 
-### Delete a file
-```
-./builddir/cileclient delete /test.txt
-```
+The client provides detailed error messages for various scenarios:
 
-## Error Handling
+- **Connection Issues**
+  - Server unreachable
+  - Authentication failures
+  - Connection timeouts
 
-If an error occurs, the client will display an error message and exit with a non-zero status code. Error messages may include:
+- **File Operations**
+  - File not found
+  - Permission denied
+  - Disk space issues
+  - Invalid paths
 
-- Connection errors (e.g., "Error connecting to server")
-- File errors (e.g., "Error opening local file")
-- Server errors (e.g., "Server returned error: File not found")
+- **Protocol Errors**
+  - Invalid responses
+  - Timeout errors
+  - Protocol version mismatches
+
+All errors are logged with appropriate exit codes for scripting purposes.
 
 ## Implementation Details
 
-The client is implemented in `src/client.c` and uses the same protocol as the server. It communicates with the server using TCP sockets and follows the protocol described in the [protocol documentation](protocol.md). 
+The client is implemented in `src/client.c` and uses a robust binary protocol for efficient communication. Key features include:
+
+- Connection pooling for better performance
+- Automatic retry on transient failures
+- Progress reporting for large file transfers
+- Thread-safe operation for concurrent use
+
+For protocol details, see the [protocol documentation](protocol.md). 

@@ -1,29 +1,38 @@
-# Server
+# CileServer: A High-Performance File Server
 
 ## Overview
 
-The CileServer server (`cileserver`) is a multi-threaded file server that allows clients to perform file operations over a network. It handles client connections, processes requests according to the protocol, and performs file operations.
+CileServer is a robust, multi-threaded file server designed for efficient file operations over a network. Built with performance and reliability in mind, it handles client connections, processes requests according to a well-defined protocol, and performs file operations with proper error handling and logging.
 
-## Usage
+## Quick Start
 
+```bash
+# Start the server with default configuration
+./builddir/cileserver
+
+# Start on a specific port
+./builddir/cileserver -p 8080
+
+# Use a custom configuration file
+./builddir/cileserver -c /path/to/config.conf
 ```
-./builddir/cileserver [OPTIONS]
-```
 
-## Options
+## Command-Line Options
 
 | Option              | Description                                | Default Value |
 |---------------------|--------------------------------------------|---------------|
-| -p, --port PORT     | Port to listen on                          | 9090          |
+| -p, --port PORT     | Port to listen on                          | 8080          |
 | -c, --config PATH   | Path to config file                        | config/cileserver.conf |
 | -h, --help          | Display help message                       | -             |
 
 You can also specify the config file path directly as the first argument:
-```
+```bash
 ./builddir/cileserver config/cileserver.conf
 ```
 
-## Server Lifecycle
+## Architecture
+
+### Server Lifecycle
 
 1. **Initialization**
    - Parse command-line arguments
@@ -44,66 +53,77 @@ You can also specify the config file path directly as the first argument:
    - Close server socket
    - Clean up resources
 
-## Threading Model
+### Threading Model
 
-The server uses a thread-per-connection model:
-- The main thread listens for new connections
-- Each client connection is handled in a separate thread
-- Thread synchronization is used for shared resources (logging, configuration)
+The server employs a thread-per-connection model for optimal performance:
+- Main thread: Listens for new connections
+- Worker threads: Handle individual client connections
+- Synchronization: Thread-safe logging and configuration access
 
-## Signal Handling
+### Signal Handling
 
-The server handles the following signals:
-- SIGINT (Ctrl+C): Graceful shutdown
-- SIGTERM: Graceful shutdown
+The server gracefully handles the following signals:
+- SIGINT (Ctrl+C): Initiates a clean shutdown
+- SIGTERM: Triggers graceful termination
 
 ## Implementation Details
 
-### Main (`src/main.c`)
+### Core Components
 
-The main entry point for the server. It:
-- Parses command-line arguments
-- Initializes the logger
-- Loads the configuration
-- Sets up signal handlers
-- Initializes the server
-- Runs the main server loop
-- Handles shutdown
+1. **Main (`src/main.c`)**
+   - Entry point and lifecycle management
+   - Command-line argument parsing
+   - Signal handling
+   - Server initialization and shutdown
 
-### Server (`src/server.c`)
+2. **Server (`src/server.c`)**
+   - Socket management
+   - Connection handling
+   - Thread management
+   - Request processing
 
-Manages the server socket and client connections. It:
-- Creates the server socket
-- Binds to the specified port
-- Listens for connections
-- Accepts client connections
-- Creates threads to handle clients
-- Processes client requests
-- Cleans up resources on shutdown
+3. **Client Handling**
+   - Request parsing
+   - Operation execution
+   - Response generation
+   - Connection cleanup
 
-### Client Handling
+### Error Handling
 
-Each client connection is handled in a separate thread. The client handler:
-- Reads the request from the client
-- Parses the request according to the protocol
-- Performs the requested operation
-- Sends the response back to the client
-- Closes the connection when done
+The server implements comprehensive error handling:
+- Socket operations (bind, listen, accept)
+- Thread management
+- File operations
+- Protocol violations
+- Resource exhaustion
 
-## Error Handling
+All errors are logged with appropriate severity levels.
 
-The server handles various error conditions:
-- Socket errors (e.g., bind, listen, accept)
-- Thread creation errors
-- File operation errors
-- Protocol errors
+### Logging System
 
-Errors are logged to the log file and, if severe, may cause the server to shut down.
+The server features a robust logging system:
+- Log file: `logs/cileserver.log`
+- Configurable log levels
+- Thread-safe logging
+- Timestamp and severity information
 
-## Logging
+## Performance Considerations
 
-The server logs events to the log file (`logs/cileserver.log`). The log level can be configured in the configuration file.
+1. **Connection Management**
+   - Maximum concurrent connections configurable
+   - Efficient thread pool management
+   - Connection timeouts
+
+2. **Resource Usage**
+   - Memory-efficient buffer management
+   - File descriptor limits
+   - Thread stack size optimization
+
+3. **Security**
+   - Optional authentication
+   - Path traversal prevention
+   - File permission enforcement
 
 ## Configuration
 
-The server can be configured using the configuration file. See [configuration documentation](configuration.md) for details. 
+The server's behavior can be customized through the configuration file. See [configuration documentation](configuration.md) for detailed information. 

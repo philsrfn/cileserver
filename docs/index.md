@@ -1,32 +1,43 @@
-# Documentation
+# CileServer: A Modern File Server Solution
 
 ## Introduction
 
-CileServer is a multi-threaded file server implemented in C. It provides basic file operations (read, write, delete, list) and directory operations (create, list) over a custom binary protocol.
+CileServer is a high-performance, multi-threaded file server written in C. Designed with efficiency and reliability in mind, it provides a robust platform for file operations over a custom binary protocol. Whether you need to share files across a network or build a distributed file system, CileServer offers the perfect foundation.
 
-## Table of Contents
+## Key Features
 
-- [Architecture](architecture.md) - Overview of the server architecture
-- [Server](server.md) - Server implementation details
-- [Client](client.md) - Client usage and implementation
+- 🚀 **High Performance**: Multi-threaded architecture for optimal throughput
+- 🔒 **Security**: Optional authentication and secure file operations
+- 📝 **Logging**: Comprehensive logging system with configurable levels
+- ⚙️ **Configurable**: Extensive configuration options for fine-tuning
+- 📁 **File Operations**: Full suite of file and directory operations
+- 🔄 **Binary Protocol**: Efficient, custom protocol for fast transfers
+
+## Documentation
+
+- [Architecture](architecture.md) - System design and components
+- [Server](server.md) - Server implementation and operation
+- [Client](client.md) - Client usage and features
 - [Protocol](protocol.md) - Binary protocol specification
 - [File Operations](file_operations.md) - File system operations
 - [Configuration](configuration.md) - Configuration system
 - [Logging](logging.md) - Logging system
 
-## Getting Started
+## Quick Start
+
+### Prerequisites
+
+- C compiler (GCC or Clang)
+- Meson build system
+- POSIX-compliant operating system
 
 ### Building
 
-To build the server and client:
-
 ```bash
+# Quick install
 ./install.sh
-```
 
-Or manually:
-
-```bash
+# Manual build
 meson setup builddir
 meson compile -C builddir
 ```
@@ -34,13 +45,20 @@ meson compile -C builddir
 ### Running the Server
 
 ```bash
+# Start with default configuration
 ./builddir/cileserver
+
+# Start on a specific port
+./builddir/cileserver -p 8080
+
+# Use custom configuration
+./builddir/cileserver -c /path/to/config.conf
 ```
 
 ### Using the Client
 
 ```bash
-# List files
+# List directory contents
 ./builddir/cileclient list /
 
 # Upload a file
@@ -76,6 +94,10 @@ cileserver/
 └── README.md
 ```
 
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 

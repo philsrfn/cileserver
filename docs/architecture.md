@@ -1,42 +1,127 @@
-# Architecture
+# CileServer Architecture
 
 ## Overview
 
-CileServer is a multi-threaded file server implemented in C. It provides basic file operations (read, write, delete, list) and directory operations (create, list) over a custom binary protocol.
+CileServer is a high-performance, multi-threaded file server designed for efficient file operations over a network. Built with modularity and scalability in mind, it provides a robust platform for file sharing and management.
 
-## Components
+## System Design
 
-The server is organized into several modular components:
+### Core Components
 
-1. **Main** (`src/main.c`): Entry point that handles command-line arguments, initializes components, and runs the main server loop.
+1. **Main Module** (`src/main.c`)
+   - Server lifecycle management
+   - Command-line interface
+   - Signal handling
+   - Component initialization
+   - Shutdown coordination
 
-2. **Server** (`src/server.c`): Manages socket connections, client handling, and the server lifecycle.
+2. **Server Module** (`src/server.c`)
+   - Socket management
+   - Connection handling
+   - Thread management
+   - Request routing
+   - Resource cleanup
 
-3. **Protocol** (`src/protocol.c`): Implements the binary protocol for client-server communication.
+3. **Protocol Module** (`src/protocol.c`)
+   - Binary protocol implementation
+   - Message parsing
+   - Response generation
+   - Error handling
+   - Protocol validation
 
-4. **File Operations** (`src/file_ops.c`): Handles file system operations (read, write, delete, list).
+4. **File Operations** (`src/file_ops.c`)
+   - File system operations
+   - Path validation
+   - Security checks
+   - Resource management
+   - Error handling
 
-5. **Configuration** (`src/config.c`): Manages server configuration from the config file.
+5. **Configuration** (`src/config.c`)
+   - Configuration loading
+   - Runtime settings
+   - Default values
+   - Validation
+   - Persistence
 
-6. **Logger** (`src/logger.c`): Provides logging functionality.
+6. **Logger** (`src/logger.c`)
+   - Log management
+   - Level control
+   - File rotation
+   - Thread safety
+   - Performance optimization
 
-7. **Client** (`src/client.c`): A command-line client for interacting with the server.
+7. **Client** (`src/client.c`)
+   - Command-line interface
+   - Protocol implementation
+   - Error handling
+   - User feedback
+   - Progress reporting
 
-## Data Flow
+## System Architecture
 
-1. The server listens for incoming connections on the configured port.
-2. When a client connects, a new thread is created to handle the client.
-3. The client sends requests using the binary protocol.
-4. The server processes the request and performs the requested file operation.
-5. The server sends a response back to the client.
-6. The client displays the result to the user.
+### Component Interaction
+
+```mermaid
+graph TD
+    A[Client] -->|TCP/IP| B[Server]
+    B -->|Protocol| C[Protocol Handler]
+    C -->|Operations| D[File System]
+    C -->|Logging| E[Logger]
+    B -->|Configuration| F[Config Manager]
+    F -->|Settings| B
+    F -->|Settings| C
+    F -->|Settings| E
+```
+
+### Data Flow
+
+1. **Connection Establishment**
+   - Client initiates TCP connection
+   - Server accepts and creates thread
+   - Authentication (if enabled)
+   - Session initialization
+
+2. **Request Processing**
+   - Client sends binary request
+   - Protocol handler validates and parses
+   - Request routed to appropriate handler
+   - File operation executed
+   - Response generated and sent
+
+3. **Resource Management**
+   - Thread pool management
+   - Connection limits
+   - Memory allocation
+   - File descriptor handling
+   - Cleanup procedures
 
 ## Threading Model
 
-The server uses a thread-per-connection model:
-- The main thread listens for new connections
-- Each client connection is handled in a separate thread
-- Thread synchronization is used for shared resources (logging, configuration)
+### Thread Types
+
+1. **Main Thread**
+   - Server initialization
+   - Signal handling
+   - Connection acceptance
+   - Shutdown coordination
+
+2. **Worker Threads**
+   - Client request handling
+   - File operations
+   - Response generation
+   - Resource cleanup
+
+3. **Background Threads**
+   - Log rotation
+   - Statistics collection
+   - Resource monitoring
+
+### Synchronization
+
+- Mutexes for shared resources
+- Condition variables for coordination
+- Atomic operations for counters
+- Thread-local storage where appropriate
 
 ## Directory Structure
 
@@ -56,4 +141,41 @@ cileserver/
 ├── Makefile             # Legacy build system
 ├── meson.build          # Meson build system
 └── README.md
-``` 
+```
+
+## Security Considerations
+
+1. **Authentication**
+   - Optional user authentication
+   - Secure credential storage
+   - Session management
+
+2. **Authorization**
+   - File permission checks
+   - Path validation
+   - Operation restrictions
+
+3. **Data Protection**
+   - Input validation
+   - Buffer overflow prevention
+   - Secure file handling
+
+## Performance Optimization
+
+1. **Resource Management**
+   - Connection pooling
+   - Thread reuse
+   - Memory efficiency
+   - File descriptor limits
+
+2. **I/O Optimization**
+   - Efficient buffer management
+   - Batch operations
+   - Asynchronous I/O where possible
+   - Caching strategies
+
+3. **Scalability**
+   - Horizontal scaling support
+   - Load balancing
+   - Resource monitoring
+   - Performance metrics 
