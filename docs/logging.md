@@ -1,10 +1,10 @@
-# Logging System
+# Logging
 
 ## Overview
 
 The logging system provides a robust and flexible way to track server activity, debug issues, and monitor system health. Implemented in `src/logger.c`, it offers configurable log levels, thread-safe operation, and both file and console output.
 
-## Key Features
+## Features
 
 - 📝 **Multiple Outputs**: File and console logging
 - 🔒 **Thread-Safe**: Safe for concurrent access
@@ -12,7 +12,7 @@ The logging system provides a robust and flexible way to track server activity, 
 - 📊 **Configurable**: Adjustable log levels
 - 🕒 **Timestamped**: Precise timing information
 
-## Log Levels
+## Levels
 
 The system supports four log levels, each serving a specific purpose:
 
@@ -23,9 +23,9 @@ The system supports four log levels, each serving a specific purpose:
 | WARNING | 2     | Potential issues that don't prevent operation    | Monitoring       |
 | ERROR   | 3     | Critical errors that may affect operation        | Troubleshooting  |
 
-## API Reference
+## API
 
-### Initialization and Cleanup
+### Init
 
 #### `int init_logger(void)`
 
@@ -56,7 +56,7 @@ Example:
 cleanup_logger();
 ```
 
-### Log Level Control
+### Levels
 
 #### `void set_log_level(log_level_t level)`
 
@@ -70,7 +70,7 @@ Example:
 set_log_level(LOG_INFO);  // Show INFO and above
 ```
 
-### Logging Functions
+### Logging
 
 #### `void log_debug(const char *format, ...)`
 
@@ -124,7 +124,7 @@ Example:
 log_error("Failed to open file: %s", strerror(errno));
 ```
 
-## Log Format
+## Format
 
 Log messages follow a consistent format:
 
@@ -139,11 +139,11 @@ Example:
 [2024-04-09 14:31:15] [ERROR] Failed to write file: Permission denied
 ```
 
-## Configuration
+## Config
 
 The logging system can be configured through:
 
-1. **Configuration File**
+1. **File**
    - Set log level
    - Configure log file path
    - Enable/disable console output
@@ -152,41 +152,41 @@ The logging system can be configured through:
    - Change log level dynamically
    - Enable/disable specific log types
 
-## Implementation Details
+## Implementation
 
-### Thread Safety
+### Threads
 
 The logging system ensures thread safety through:
 - Mutex protection for file access
 - Atomic operations for log level changes
 - Thread-local storage for formatting
 
-### Performance Optimization
+### Performance
 
-1. **Message Buffering**
+1. **Messages**
    - Batch writes to reduce I/O
    - Efficient string formatting
    - Minimal locking duration
 
-2. **Resource Management**
+2. **Resources**
    - Automatic file rotation
    - Memory-efficient buffer usage
    - Proper cleanup on shutdown
 
-3. **Error Handling**
+3. **Errors**
    - Graceful degradation
    - Fallback to stderr
    - Automatic recovery
 
 ## Best Practices
 
-1. **Log Level Selection**
+1. **Levels**
    - Use DEBUG for development
    - Use INFO for normal operation
    - Use WARNING for potential issues
    - Use ERROR for critical problems
 
-2. **Message Content**
+2. **Messages**
    - Be specific and descriptive
    - Include relevant context
    - Use consistent formatting

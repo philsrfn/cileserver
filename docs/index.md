@@ -1,10 +1,10 @@
-# CileServer: A Modern File Server Solution
+# CileServer
 
-## Introduction
+## Intro
 
 CileServer is a high-performance, multi-threaded file server written in C. Designed with efficiency and reliability in mind, it provides a robust platform for file operations over a custom binary protocol. Whether you need to share files across a network or build a distributed file system, CileServer offers the perfect foundation.
 
-## Key Features
+## Features
 
 - 🚀 **High Performance**: Multi-threaded architecture for optimal throughput
 - 🔒 **Security**: Optional authentication and secure file operations
@@ -13,7 +13,7 @@ CileServer is a high-performance, multi-threaded file server written in C. Desig
 - 📁 **File Operations**: Full suite of file and directory operations
 - 🔄 **Binary Protocol**: Efficient, custom protocol for fast transfers
 
-## Documentation
+## Docs
 
 - [Architecture](architecture.md) - System design and components
 - [Server](server.md) - Server implementation and operation
@@ -31,7 +31,7 @@ CileServer is a high-performance, multi-threaded file server written in C. Desig
 - Meson build system
 - POSIX-compliant operating system
 
-### Building
+### Build
 
 ```bash
 # Quick install
@@ -42,7 +42,7 @@ meson setup builddir
 meson compile -C builddir
 ```
 
-### Running the Server
+### Run Server
 
 ```bash
 # Start with default configuration
@@ -55,7 +55,7 @@ meson compile -C builddir
 ./builddir/cileserver -c /path/to/config.conf
 ```
 
-### Using the Client
+### Use Client
 
 ```bash
 # List directory contents
@@ -74,7 +74,7 @@ meson compile -C builddir
 ./builddir/cileclient delete /remote_file.txt
 ```
 
-## Project Structure
+## Structure
 
 ```
 cileserver/

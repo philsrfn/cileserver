@@ -1,10 +1,10 @@
-# CileServer Protocol Specification
+# Protocol
 
 ## Overview
 
 CileServer implements a custom binary protocol optimized for efficient file operations over TCP/IP. The protocol is designed to be lightweight, fast, and reliable, with built-in support for error handling and extensibility.
 
-## Protocol Features
+## Features
 
 - 🚀 **Efficient**: Binary format for minimal overhead
 - 🔒 **Reliable**: Built-in error detection and handling
@@ -12,9 +12,9 @@ CileServer implements a custom binary protocol optimized for efficient file oper
 - 🔄 **Extensible**: Easy to add new commands
 - ⚡ **Fast**: Minimal parsing overhead
 
-## Message Format
+## Format
 
-### Request Message
+### Request
 
 ```
 +--------+------------+------------+------+------+
@@ -30,7 +30,7 @@ Field Descriptions:
 - **Path** (variable): UTF-8 encoded path string
 - **Data** (variable): Optional payload for operations like PUT
 
-### Response Message
+### Response
 
 ```
 +--------+------------+------+
@@ -44,7 +44,7 @@ Field Descriptions:
 - **Data Length** (4 bytes): Length of response data (network byte order)
 - **Data** (variable): Response payload or error message
 
-## Command Reference
+## Commands
 
 | Command | Value | Description                   | Request Data                | Response Data               |
 |---------|-------|-------------------------------|----------------------------|----------------------------|
@@ -55,14 +55,14 @@ Field Descriptions:
 | MKDIR   | 0x05  | Create directory              | None                       | Success message            |
 | INFO    | 0x06  | Get file information          | None                       | file_info_t                |
 
-## Status Codes
+## Status
 
 | Status | Value | Description                   |
 |--------|-------|-------------------------------|
 | OK     | 0x00  | Operation successful          |
 | ERROR  | 0x01  | Operation failed              |
 
-## Data Structures
+## Data
 
 ### file_info_t
 
@@ -75,16 +75,16 @@ typedef struct {
 } file_info_t;
 ```
 
-## Protocol Flow
+## Flow
 
-### Successful Operation
+### Success
 
 1. Client sends request with command and parameters
 2. Server processes request
 3. Server sends response with status OK and result data
 4. Client processes response
 
-### Error Handling
+### Errors
 
 1. Client sends request
 2. Server detects error
@@ -93,7 +93,7 @@ typedef struct {
 
 ## Examples
 
-### List Directory
+### List
 
 Request:
 ```c
@@ -117,7 +117,7 @@ struct {
 } response;
 ```
 
-### Error Response
+### Error
 
 Response:
 ```c
@@ -130,7 +130,7 @@ struct {
 
 ## Best Practices
 
-1. **Error Handling**
+1. **Errors**
    - Always check response status
    - Handle network errors gracefully
    - Implement retry logic for transient failures

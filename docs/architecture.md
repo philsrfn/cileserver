@@ -1,42 +1,42 @@
-# CileServer Architecture
+# Architecture
 
 ## Overview
 
 CileServer is a high-performance, multi-threaded file server designed for efficient file operations over a network. Built with modularity and scalability in mind, it provides a robust platform for file sharing and management.
 
-## System Design
+## Design
 
-### Core Components
+### Components
 
-1. **Main Module** (`src/main.c`)
+1. **Main** (`src/main.c`)
    - Server lifecycle management
    - Command-line interface
    - Signal handling
    - Component initialization
    - Shutdown coordination
 
-2. **Server Module** (`src/server.c`)
+2. **Server** (`src/server.c`)
    - Socket management
    - Connection handling
    - Thread management
    - Request routing
    - Resource cleanup
 
-3. **Protocol Module** (`src/protocol.c`)
+3. **Protocol** (`src/protocol.c`)
    - Binary protocol implementation
    - Message parsing
    - Response generation
    - Error handling
    - Protocol validation
 
-4. **File Operations** (`src/file_ops.c`)
+4. **Files** (`src/file_ops.c`)
    - File system operations
    - Path validation
    - Security checks
    - Resource management
    - Error handling
 
-5. **Configuration** (`src/config.c`)
+5. **Config** (`src/config.c`)
    - Configuration loading
    - Runtime settings
    - Default values
@@ -57,9 +57,9 @@ CileServer is a high-performance, multi-threaded file server designed for effici
    - User feedback
    - Progress reporting
 
-## System Architecture
+## System
 
-### Component Interaction
+### Interaction
 
 ```mermaid
 graph TD
@@ -73,57 +73,57 @@ graph TD
     F -->|Settings| E
 ```
 
-### Data Flow
+### Flow
 
-1. **Connection Establishment**
+1. **Connection**
    - Client initiates TCP connection
    - Server accepts and creates thread
    - Authentication (if enabled)
    - Session initialization
 
-2. **Request Processing**
+2. **Requests**
    - Client sends binary request
    - Protocol handler validates and parses
    - Request routed to appropriate handler
    - File operation executed
    - Response generated and sent
 
-3. **Resource Management**
+3. **Resources**
    - Thread pool management
    - Connection limits
    - Memory allocation
    - File descriptor handling
    - Cleanup procedures
 
-## Threading Model
+## Threads
 
-### Thread Types
+### Types
 
-1. **Main Thread**
+1. **Main**
    - Server initialization
    - Signal handling
    - Connection acceptance
    - Shutdown coordination
 
-2. **Worker Threads**
+2. **Workers**
    - Client request handling
    - File operations
    - Response generation
    - Resource cleanup
 
-3. **Background Threads**
+3. **Background**
    - Log rotation
    - Statistics collection
    - Resource monitoring
 
-### Synchronization
+### Sync
 
 - Mutexes for shared resources
 - Condition variables for coordination
 - Atomic operations for counters
 - Thread-local storage where appropriate
 
-## Directory Structure
+## Structure
 
 ```
 cileserver/
@@ -143,38 +143,38 @@ cileserver/
 └── README.md
 ```
 
-## Security Considerations
+## Security
 
-1. **Authentication**
+1. **Auth**
    - Optional user authentication
    - Secure credential storage
    - Session management
 
-2. **Authorization**
+2. **Authz**
    - File permission checks
    - Path validation
    - Operation restrictions
 
-3. **Data Protection**
+3. **Data**
    - Input validation
    - Buffer overflow prevention
    - Secure file handling
 
-## Performance Optimization
+## Performance
 
-1. **Resource Management**
+1. **Resources**
    - Connection pooling
    - Thread reuse
    - Memory efficiency
    - File descriptor limits
 
-2. **I/O Optimization**
+2. **I/O**
    - Efficient buffer management
    - Batch operations
    - Asynchronous I/O where possible
    - Caching strategies
 
-3. **Scalability**
+3. **Scale**
    - Horizontal scaling support
    - Load balancing
    - Resource monitoring

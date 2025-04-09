@@ -1,4 +1,4 @@
-# CileClient: Command-Line File Management
+# CileClient
 
 ## Overview
 
@@ -17,24 +17,22 @@ CileClient is a powerful command-line interface for interacting with CileServer.
 ./builddir/cileclient get /remote/path/file.txt local_file.txt
 ```
 
-## Command Reference
+## Commands
 
-### Basic Usage
+### Basic
 
 ```
 ./builddir/cileclient [OPTIONS] COMMAND [ARGS]
 ```
 
-### Connection Options
+### Options
 
 | Option           | Description                                | Default Value |
 |------------------|--------------------------------------------|---------------|
 | -h, --host HOST  | Server hostname                           | localhost     |
 | -p, --port PORT  | Server port                               | 8080          |
 
-### Available Commands
-
-#### List Directory Contents
+### List
 
 ```bash
 ./builddir/cileclient list [PATH]
@@ -51,7 +49,7 @@ Examples:
 ./builddir/cileclient list /documents
 ```
 
-#### Download Files
+### Get
 
 ```bash
 ./builddir/cileclient get REMOTE_PATH LOCAL_PATH
@@ -68,7 +66,7 @@ Examples:
 ./builddir/cileclient get /data/sample.txt .
 ```
 
-#### Upload Files
+### Put
 
 ```bash
 ./builddir/cileclient put REMOTE_PATH LOCAL_PATH
@@ -85,7 +83,7 @@ Examples:
 ./builddir/cileclient put /uploads/image.jpg ./photo.jpg
 ```
 
-#### Create Directories
+### Mkdir
 
 ```bash
 ./builddir/cileclient mkdir PATH
@@ -102,7 +100,7 @@ Examples:
 ./builddir/cileclient mkdir /data/2024/04
 ```
 
-#### Delete Files or Directories
+### Delete
 
 ```bash
 ./builddir/cileclient delete PATH
@@ -119,9 +117,9 @@ Examples:
 ./builddir/cileclient delete /backup/old_version
 ```
 
-## Advanced Usage
+## Advanced
 
-### Scripting Examples
+### Scripting
 
 ```bash
 #!/bin/bash
@@ -136,7 +134,7 @@ done
 ./builddir/cileclient put "/backup/$(date +%Y-%m-%d)/data.tar.gz" "data.tar.gz"
 ```
 
-### Error Handling
+### Errors
 
 The client provides detailed error messages for various scenarios:
 
@@ -158,7 +156,7 @@ The client provides detailed error messages for various scenarios:
 
 All errors are logged with appropriate exit codes for scripting purposes.
 
-## Implementation Details
+## Implementation
 
 The client is implemented in `src/client.c` and uses a robust binary protocol for efficient communication. Key features include:
 
