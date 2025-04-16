@@ -9,12 +9,12 @@
 - [x] Implement configuration system
 - [x] Add protocol support (custom binary protocol)
 - [x] Add documentation
+- [x] Implement authentication and authorization
 
 ## In Progress
 - [ ] Write tests
 
 ## Future Enhancements
-- [ ] Implement authentication and authorization
 - [ ] Optimize performance
 - [ ] Add support for additional protocols (HTTP/FTP)
 - [ ] Implement file locking for concurrent access

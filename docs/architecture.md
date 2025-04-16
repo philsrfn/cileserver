@@ -57,6 +57,13 @@ CileServer is a high-performance, multi-threaded file server designed for effici
    - User feedback
    - Progress reporting
 
+8. **Auth** (`src/auth.c`)
+   - User authentication
+   - Role-based permissions
+   - Credential management
+   - Session tracking
+   - Security validation
+
 ## System
 
 ### Interaction
@@ -65,18 +72,18 @@ CileServer is a high-performance, multi-threaded file server designed for effici
 +--------+     TCP/IP     +--------+     Protocol    +----------------+
 | Client | -------------> | Server | --------------> | Protocol Handler|
 +--------+               +--------+                 +----------------+
-                                                           |
-                                                           |
-                                                           v
+                             |                            |
+                             |                            |
+                             v                            v
                     +--------+     Settings     +----------------+
                     | Config | <--------------> | File System    |
                     +--------+                  +----------------+
-                         ^
-                         |
-                         v
-                    +--------+
-                    | Logger |
-                    +--------+
+                         ^                            ^
+                         |                            |
+                         v                            v
+                    +--------+                   +--------+
+                    | Logger |                   | Auth   |
+                    +--------+                   +--------+
 ```
 
 ### Flow
@@ -144,7 +151,6 @@ cileserver/
 ├── tests/               # Test scripts
 ├── .gitignore
 ├── install.sh           # Installation script
-├── Makefile             # Legacy build system
 ├── meson.build          # Meson build system
 └── README.md
 ```
@@ -152,7 +158,8 @@ cileserver/
 ## Security
 
 1. **Auth**
-   - Optional user authentication
+   - User authentication
+   - Role-based authorization
    - Secure credential storage
    - Session management
 

@@ -15,7 +15,8 @@ server_sources = [
   'src/file_ops.c',
   'src/protocol.c',
   'src/config.c',
-  'src/logger.c'
+  'src/logger.c',
+  'src/auth.c'
 ]
 
 server = executable('cileserver',
@@ -30,7 +31,8 @@ client_sources = [
   'src/protocol.c',
   'src/logger.c',
   'src/file_ops.c',
-  'src/config.c'
+  'src/config.c',
+  'src/auth.c'
 ]
 
 client = executable('cileclient',

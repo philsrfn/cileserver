@@ -10,6 +10,7 @@ A simple and efficient file server implemented in C.
 - Configuration system
 - Logging system
 - Custom binary protocol
+- Authentication and authorization
 
 ## Project Structure
 
@@ -19,6 +20,7 @@ cileserver/
 │   └── cileserver.conf  # Example configuration (not tracked in git)
 ├── docs/                # Documentation
 │   ├── architecture.md
+│   ├── authentication.md
 │   ├── client.md
 │   ├── configuration.md
 │   ├── file_operations.md
@@ -35,7 +37,6 @@ cileserver/
 ├── builddir/            # Build output directory (not tracked in git)
 ├── .gitignore
 ├── install.sh           # Installation script
-├── Makefile             # Legacy build system
 ├── meson.build          # Meson build system
 └── README.md            # This file
 ```
@@ -44,7 +45,7 @@ cileserver/
 
 ## Building
 
-### Using Meson (Recommended)
+### Using Meson
 
 To build the server and client using Meson:
 
@@ -94,6 +95,8 @@ Available commands:
 
 - `-p, --port PORT`: Port to listen on (default: from config or 9090)
 - `-c, --config PATH`: Path to config file (default: config/cileserver.conf)
+- `-a, --auth [FILE]`: Enable authentication (optional auth file path)
+- `--no-auth`: Disable authentication
 - `-h, --help`: Display help message
 
 You can also specify the config file path directly as the first argument:
@@ -143,6 +146,7 @@ Comprehensive documentation is available in the `docs` directory:
 - [File Operations](docs/file_operations.md)
 - [Configuration System](docs/configuration.md)
 - [Logging System](docs/logging.md)
+- [Authentication System](docs/authentication.md)
 - [Project TODO List](docs/TODO.md)
 
 ## Examples

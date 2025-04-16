@@ -28,8 +28,9 @@ int shutdown_server(void);
  * Handle a client connection
  * 
  * @param client_fd Client socket file descriptor
+ * @param client_index Index of the client in the client array
  * @return 0 on success, non-zero on failure
  */
-int handle_client(int client_fd);
+int handle_client(int client_fd, int client_index);
 
 #endif /* SERVER_H */ 
