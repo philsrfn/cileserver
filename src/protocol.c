@@ -6,10 +6,14 @@
 #include "../include/protocol.h"
 #include "../include/file_ops.h"
 #include "../include/logger.h"
+#include "../include/auth.h"
+#include "../include/config.h"
 
 #define BUFFER_SIZE 4096
 #define MAX_PATH_LENGTH 1024
 #define MAX_ENTRIES 100
+#define MAX_USERNAME_LENGTH 64
+#define MAX_PASSWORD_LENGTH 64
 
 // Protocol message header
 typedef struct {
@@ -24,7 +28,13 @@ typedef struct {
     uint32_t data_length;
 } __attribute__((packed)) response_header_t;
 
-int process_request(int client_fd, const char *buffer, size_t size) {
+// Auth message structure
+typedef struct {
+    char username[MAX_USERNAME_LENGTH];
+    char password[MAX_PASSWORD_LENGTH];
+} __attribute__((packed)) auth_message_t;
+
+int process_request(int client_fd, const char *buffer, size_t size, user_role_t *user_role) {
     if (size < sizeof(message_header_t)) {
         log_error("Request too small to contain header");
         return -1;
@@ -59,25 +69,44 @@ int process_request(int client_fd, const char *buffer, size_t size) {
     
     log_debug("Received command %d for path %s", command, path);
     
+    // Check if authentication is required
+    server_config_t *config = get_config();
+    if (config->enable_auth && command != CMD_AUTH && *user_role == ROLE_GUEST) {
+        log_warning("Authentication required for command %d", command);
+        return send_response(client_fd, RESP_AUTH_REQUIRED, "Authentication required", 24);
+    }
+    
     // Process command
     switch (command) {
+        case CMD_AUTH:
+            if (data_length >= sizeof(auth_message_t)) {
+                const auth_message_t *auth_data = (const auth_message_t *)data;
+                return handle_auth_command(client_fd, auth_data->username, auth_data->password, user_role);
+            } else {
+                log_error("Invalid authentication data");
+                return send_response(client_fd, RESP_ERROR, "Invalid authentication data", 25);
+            }
+        
+        case CMD_LOGOUT:
+            return handle_logout_command(client_fd, user_role);
+            
         case CMD_LIST:
-            return handle_list_command(client_fd, path);
+            return handle_list_command(client_fd, path, *user_role);
         
         case CMD_GET:
-            return handle_get_command(client_fd, path);
+            return handle_get_command(client_fd, path, *user_role);
         
         case CMD_PUT:
-            return handle_put_command(client_fd, path, data, data_length);
+            return handle_put_command(client_fd, path, data, data_length, *user_role);
         
         case CMD_DELETE:
-            return handle_delete_command(client_fd, path);
+            return handle_delete_command(client_fd, path, *user_role);
         
         case CMD_MKDIR:
-            return handle_mkdir_command(client_fd, path);
+            return handle_mkdir_command(client_fd, path, *user_role);
         
         case CMD_INFO:
-            return handle_info_command(client_fd, path);
+            return handle_info_command(client_fd, path, *user_role);
         
         default:
             log_error("Unknown command: %d", command);
@@ -108,9 +137,36 @@ int send_response(int client_fd, int status, const void *data, size_t data_size)
     return 0;
 }
 
-int handle_list_command(int client_fd, const char *path) {
+int handle_auth_command(int client_fd, const char *username, const char *password, user_role_t *user_role) {
+    int result;
+    
+    log_info("Authentication attempt for user %s", username);
+    
+    result = authenticate_user(username, password, user_role);
+    if (result == 0) {
+        char response[64];
+        snprintf(response, sizeof(response), "Authenticated as %s (role %d)", username, *user_role);
+        return send_response(client_fd, RESP_OK, response, strlen(response));
+    } else {
+        return send_response(client_fd, RESP_ERROR, "Authentication failed", 20);
+    }
+}
+
+int handle_logout_command(int client_fd, user_role_t *user_role) {
+    *user_role = ROLE_GUEST;
+    log_info("User logged out, role set to guest");
+    return send_response(client_fd, RESP_OK, "Logged out", 10);
+}
+
+int handle_list_command(int client_fd, const char *path, user_role_t user_role) {
     file_info_t entries[MAX_ENTRIES];
     int num_entries;
+    
+    // Check permissions
+    if (!check_permission(user_role, CMD_LIST)) {
+        log_warning("Permission denied for LIST command");
+        return send_response(client_fd, RESP_ERROR, "Permission denied", 17);
+    }
     
     if (list_directory(path, entries, MAX_ENTRIES, &num_entries) != 0) {
         return send_response(client_fd, RESP_ERROR, "Failed to list directory", 23);
@@ -123,9 +179,15 @@ int handle_list_command(int client_fd, const char *path) {
     return send_response(client_fd, RESP_OK, entries, response_size);
 }
 
-int handle_get_command(int client_fd, const char *path) {
+int handle_get_command(int client_fd, const char *path, user_role_t user_role) {
     char buffer[BUFFER_SIZE];
     size_t bytes_read;
+    
+    // Check permissions
+    if (!check_permission(user_role, CMD_GET)) {
+        log_warning("Permission denied for GET command");
+        return send_response(client_fd, RESP_ERROR, "Permission denied", 17);
+    }
     
     if (read_file(path, buffer, BUFFER_SIZE, &bytes_read) != 0) {
         return send_response(client_fd, RESP_ERROR, "Failed to read file", 18);
@@ -135,7 +197,13 @@ int handle_get_command(int client_fd, const char *path) {
     return send_response(client_fd, RESP_OK, buffer, bytes_read);
 }
 
-int handle_put_command(int client_fd, const char *path, const void *data, size_t data_size) {
+int handle_put_command(int client_fd, const char *path, const void *data, size_t data_size, user_role_t user_role) {
+    // Check permissions
+    if (!check_permission(user_role, CMD_PUT)) {
+        log_warning("Permission denied for PUT command");
+        return send_response(client_fd, RESP_ERROR, "Permission denied", 17);
+    }
+    
     if (write_file(path, data, data_size) != 0) {
         return send_response(client_fd, RESP_ERROR, "Failed to write file", 19);
     }
@@ -144,7 +212,13 @@ int handle_put_command(int client_fd, const char *path, const void *data, size_t
     return send_response(client_fd, RESP_OK, "File written successfully", 24);
 }
 
-int handle_delete_command(int client_fd, const char *path) {
+int handle_delete_command(int client_fd, const char *path, user_role_t user_role) {
+    // Check permissions
+    if (!check_permission(user_role, CMD_DELETE)) {
+        log_warning("Permission denied for DELETE command");
+        return send_response(client_fd, RESP_ERROR, "Permission denied", 17);
+    }
+    
     if (delete_file(path) != 0) {
         return send_response(client_fd, RESP_ERROR, "Failed to delete file", 20);
     }
@@ -153,7 +227,13 @@ int handle_delete_command(int client_fd, const char *path) {
     return send_response(client_fd, RESP_OK, "File deleted successfully", 24);
 }
 
-int handle_mkdir_command(int client_fd, const char *path) {
+int handle_mkdir_command(int client_fd, const char *path, user_role_t user_role) {
+    // Check permissions
+    if (!check_permission(user_role, CMD_MKDIR)) {
+        log_warning("Permission denied for MKDIR command");
+        return send_response(client_fd, RESP_ERROR, "Permission denied", 17);
+    }
+    
     if (create_directory(path) != 0) {
         return send_response(client_fd, RESP_ERROR, "Failed to create directory", 25);
     }
@@ -162,8 +242,14 @@ int handle_mkdir_command(int client_fd, const char *path) {
     return send_response(client_fd, RESP_OK, "Directory created successfully", 29);
 }
 
-int handle_info_command(int client_fd, const char *path) {
+int handle_info_command(int client_fd, const char *path, user_role_t user_role) {
     file_info_t info;
+    
+    // Check permissions
+    if (!check_permission(user_role, CMD_INFO)) {
+        log_warning("Permission denied for INFO command");
+        return send_response(client_fd, RESP_ERROR, "Permission denied", 17);
+    }
     
     if (get_file_info(path, &info) != 0) {
         return send_response(client_fd, RESP_ERROR, "Failed to get file info", 22);

@@ -9,10 +9,17 @@
 #include <time.h>
 #include "../include/protocol.h"
 #include "../include/file_ops.h"
+#include "../include/auth.h"
 
 #define BUFFER_SIZE 4096
 #define DEFAULT_PORT 9090
 #define DEFAULT_HOST "localhost"
+
+// Global variables for auth credentials
+static char g_username[64] = "";
+static char g_password[64] = "";
+static char g_host[256] = DEFAULT_HOST;
+static int g_port = DEFAULT_PORT;
 
 // Protocol message header
 typedef struct {
@@ -27,6 +34,12 @@ typedef struct {
     uint32_t data_length;
 } __attribute__((packed)) response_header_t;
 
+// Auth message structure
+typedef struct {
+    char username[64];
+    char password[64];
+} __attribute__((packed)) auth_message_t;
+
 int connect_to_server(const char *host, int port);
 int send_request(int sock_fd, uint8_t command, const char *path, const void *data, size_t data_size);
 int receive_response(int sock_fd, void *buffer, size_t buffer_size, size_t *data_size);
@@ -35,7 +48,10 @@ void client_get_file(int sock_fd, const char *path, const char *local_path);
 void client_put_file(int sock_fd, const char *path, const char *local_path);
 void client_delete_file(int sock_fd, const char *path);
 void client_create_directory(int sock_fd, const char *path);
+void client_authenticate(int sock_fd, const char *username, const char *password);
+void client_logout(int sock_fd);
 void print_usage(const char *program_name);
+void client_login(const char *username, const char *password);
 
 int connect_to_server(const char *host, int port) {
     int sock_fd;
@@ -121,7 +137,12 @@ int receive_response(int sock_fd, void *buffer, size_t buffer_size, size_t *data
     
     // Check if response is OK
     if (header.status != RESP_OK) {
-        fprintf(stderr, "Server returned error\n");
+        if (header.status == RESP_AUTH_REQUIRED) {
+            fprintf(stderr, "Authentication required\n");
+            return -2;  // Special return code for auth required
+        } else {
+            fprintf(stderr, "Server returned error\n");
+        }
         
         // Read error message if available
         if (*data_size > 0 && *data_size < buffer_size) {
@@ -154,11 +175,77 @@ int receive_response(int sock_fd, void *buffer, size_t buffer_size, size_t *data
     return 0;
 }
 
+void client_authenticate(int sock_fd, const char *username, const char *password) {
+    char buffer[BUFFER_SIZE];
+    size_t data_size;
+    auth_message_t auth_data;
+    
+    printf("Authenticating as user: %s\n", username);
+    
+    // Prepare auth data
+    strncpy(auth_data.username, username, sizeof(auth_data.username) - 1);
+    strncpy(auth_data.password, password, sizeof(auth_data.password) - 1);
+    
+    // Send AUTH request
+    if (send_request(sock_fd, CMD_AUTH, "", &auth_data, sizeof(auth_data)) != 0) {
+        printf("Failed to send authentication request\n");
+        return;
+    }
+    
+    // Receive response
+    int result = receive_response(sock_fd, buffer, BUFFER_SIZE, &data_size);
+    if (result != 0) {
+        printf("Failed to authenticate\n");
+        return;
+    }
+    
+    // Display success message
+    buffer[data_size] = '\0';
+    printf("%s\n", buffer);
+}
+
+void client_logout(int sock_fd) {
+    char buffer[BUFFER_SIZE];
+    size_t data_size;
+    
+    printf("Logging out\n");
+    
+    // Send LOGOUT request
+    if (send_request(sock_fd, CMD_LOGOUT, "", NULL, 0) != 0) {
+        return;
+    }
+    
+    // Receive response
+    if (receive_response(sock_fd, buffer, BUFFER_SIZE, &data_size) != 0) {
+        return;
+    }
+    
+    // Display success message
+    buffer[data_size] = '\0';
+    printf("%s\n", buffer);
+}
+
 void client_list_directory(int sock_fd, const char *path) {
     char buffer[BUFFER_SIZE];
     size_t data_size;
     
     printf("Listing directory: %s\n", path);
+    
+    // Try to authenticate first if credentials are available
+    if (g_username[0] != '\0' && g_password[0] != '\0') {
+        // Create a separate connection for authentication
+        int auth_sock_fd = connect_to_server(g_host, g_port);
+        if (auth_sock_fd < 0) {
+            fprintf(stderr, "Failed to connect for authentication\n");
+            return;
+        }
+        
+        // Authenticate on the separate connection
+        client_authenticate(auth_sock_fd, g_username, g_password);
+        
+        // Close the authentication connection
+        close(auth_sock_fd);
+    }
     
     // Send LIST request
     if (send_request(sock_fd, CMD_LIST, path, NULL, 0) != 0) {
@@ -166,7 +253,40 @@ void client_list_directory(int sock_fd, const char *path) {
     }
     
     // Receive response
-    if (receive_response(sock_fd, buffer, BUFFER_SIZE, &data_size) != 0) {
+    int result = receive_response(sock_fd, buffer, BUFFER_SIZE, &data_size);
+    if (result == -2) {
+        // Authentication required, prompt for credentials if not already set
+        if (g_username[0] == '\0') {
+            printf("Username: ");
+            fgets(g_username, sizeof(g_username), stdin);
+            g_username[strcspn(g_username, "\n")] = 0; // Remove newline
+        } else {
+            printf("Using username: %s\n", g_username);
+        }
+        
+        if (g_password[0] == '\0') {
+            printf("Password: ");
+            fgets(g_password, sizeof(g_password), stdin);
+            g_password[strcspn(g_password, "\n")] = 0; // Remove newline
+        }
+        
+        // Create a separate connection for authentication
+        int auth_sock_fd = connect_to_server(g_host, g_port);
+        if (auth_sock_fd < 0) {
+            fprintf(stderr, "Failed to connect for authentication\n");
+            return;
+        }
+        
+        // Authenticate on the separate connection
+        client_authenticate(auth_sock_fd, g_username, g_password);
+        
+        // Close the authentication connection
+        close(auth_sock_fd);
+        
+        // Try the original command again
+        client_list_directory(sock_fd, path);
+        return;
+    } else if (result != 0) {
         return;
     }
     
@@ -197,13 +317,62 @@ void client_get_file(int sock_fd, const char *path, const char *local_path) {
     
     printf("Getting file: %s -> %s\n", path, local_path);
     
+    // Try to authenticate first if credentials are available
+    if (g_username[0] != '\0' && g_password[0] != '\0') {
+        // Create a separate connection for authentication
+        int auth_sock_fd = connect_to_server(g_host, g_port);
+        if (auth_sock_fd < 0) {
+            fprintf(stderr, "Failed to connect for authentication\n");
+            return;
+        }
+        
+        // Authenticate on the separate connection
+        client_authenticate(auth_sock_fd, g_username, g_password);
+        
+        // Close the authentication connection
+        close(auth_sock_fd);
+    }
+    
     // Send GET request
     if (send_request(sock_fd, CMD_GET, path, NULL, 0) != 0) {
         return;
     }
     
     // Receive response
-    if (receive_response(sock_fd, buffer, BUFFER_SIZE, &data_size) != 0) {
+    int result = receive_response(sock_fd, buffer, BUFFER_SIZE, &data_size);
+    if (result == -2) {
+        // Authentication required, prompt for credentials if not already set
+        if (g_username[0] == '\0') {
+            printf("Username: ");
+            fgets(g_username, sizeof(g_username), stdin);
+            g_username[strcspn(g_username, "\n")] = 0; // Remove newline
+        } else {
+            printf("Using username: %s\n", g_username);
+        }
+        
+        if (g_password[0] == '\0') {
+            printf("Password: ");
+            fgets(g_password, sizeof(g_password), stdin);
+            g_password[strcspn(g_password, "\n")] = 0; // Remove newline
+        }
+        
+        // Create a separate connection for authentication
+        int auth_sock_fd = connect_to_server(g_host, g_port);
+        if (auth_sock_fd < 0) {
+            fprintf(stderr, "Failed to connect for authentication\n");
+            return;
+        }
+        
+        // Authenticate on the separate connection
+        client_authenticate(auth_sock_fd, g_username, g_password);
+        
+        // Close the authentication connection
+        close(auth_sock_fd);
+        
+        // Try the original command again
+        client_get_file(sock_fd, path, local_path);
+        return;
+    } else if (result != 0) {
         return;
     }
     
@@ -236,6 +405,22 @@ void client_put_file(int sock_fd, const char *path, const char *local_path) {
     }
     
     printf("Putting file: %s -> %s\n", local_path, path);
+    
+    // Try to authenticate first if credentials are available
+    if (g_username[0] != '\0' && g_password[0] != '\0') {
+        // Create a separate connection for authentication
+        int auth_sock_fd = connect_to_server(g_host, g_port);
+        if (auth_sock_fd < 0) {
+            fprintf(stderr, "Failed to connect for authentication\n");
+            return;
+        }
+        
+        // Authenticate on the separate connection
+        client_authenticate(auth_sock_fd, g_username, g_password);
+        
+        // Close the authentication connection
+        close(auth_sock_fd);
+    }
     
     // Read local file
     FILE *file = fopen(local_path, "rb");
@@ -270,7 +455,40 @@ void client_put_file(int sock_fd, const char *path, const char *local_path) {
     }
     
     // Receive response
-    if (receive_response(sock_fd, buffer, BUFFER_SIZE, &data_size) != 0) {
+    int result = receive_response(sock_fd, buffer, BUFFER_SIZE, &data_size);
+    if (result == -2) {
+        // Authentication required, prompt for credentials if not already set
+        if (g_username[0] == '\0') {
+            printf("Username: ");
+            fgets(g_username, sizeof(g_username), stdin);
+            g_username[strcspn(g_username, "\n")] = 0; // Remove newline
+        } else {
+            printf("Using username: %s\n", g_username);
+        }
+        
+        if (g_password[0] == '\0') {
+            printf("Password: ");
+            fgets(g_password, sizeof(g_password), stdin);
+            g_password[strcspn(g_password, "\n")] = 0; // Remove newline
+        }
+        
+        // Create a separate connection for authentication
+        int auth_sock_fd = connect_to_server(g_host, g_port);
+        if (auth_sock_fd < 0) {
+            fprintf(stderr, "Failed to connect for authentication\n");
+            return;
+        }
+        
+        // Authenticate on the separate connection
+        client_authenticate(auth_sock_fd, g_username, g_password);
+        
+        // Close the authentication connection
+        close(auth_sock_fd);
+        
+        // Try the original command again
+        client_put_file(sock_fd, path, local_path);
+        return;
+    } else if (result != 0) {
         return;
     }
     
@@ -285,13 +503,62 @@ void client_delete_file(int sock_fd, const char *path) {
     
     printf("Deleting: %s\n", path);
     
+    // Try to authenticate first if credentials are available
+    if (g_username[0] != '\0' && g_password[0] != '\0') {
+        // Create a separate connection for authentication
+        int auth_sock_fd = connect_to_server(g_host, g_port);
+        if (auth_sock_fd < 0) {
+            fprintf(stderr, "Failed to connect for authentication\n");
+            return;
+        }
+        
+        // Authenticate on the separate connection
+        client_authenticate(auth_sock_fd, g_username, g_password);
+        
+        // Close the authentication connection
+        close(auth_sock_fd);
+    }
+    
     // Send DELETE request
     if (send_request(sock_fd, CMD_DELETE, path, NULL, 0) != 0) {
         return;
     }
     
     // Receive response
-    if (receive_response(sock_fd, buffer, BUFFER_SIZE, &data_size) != 0) {
+    int result = receive_response(sock_fd, buffer, BUFFER_SIZE, &data_size);
+    if (result == -2) {
+        // Authentication required, prompt for credentials if not already set
+        if (g_username[0] == '\0') {
+            printf("Username: ");
+            fgets(g_username, sizeof(g_username), stdin);
+            g_username[strcspn(g_username, "\n")] = 0; // Remove newline
+        } else {
+            printf("Using username: %s\n", g_username);
+        }
+        
+        if (g_password[0] == '\0') {
+            printf("Password: ");
+            fgets(g_password, sizeof(g_password), stdin);
+            g_password[strcspn(g_password, "\n")] = 0; // Remove newline
+        }
+        
+        // Create a separate connection for authentication
+        int auth_sock_fd = connect_to_server(g_host, g_port);
+        if (auth_sock_fd < 0) {
+            fprintf(stderr, "Failed to connect for authentication\n");
+            return;
+        }
+        
+        // Authenticate on the separate connection
+        client_authenticate(auth_sock_fd, g_username, g_password);
+        
+        // Close the authentication connection
+        close(auth_sock_fd);
+        
+        // Try the original command again
+        client_delete_file(sock_fd, path);
+        return;
+    } else if (result != 0) {
         return;
     }
     
@@ -306,13 +573,62 @@ void client_create_directory(int sock_fd, const char *path) {
     
     printf("Creating directory: %s\n", path);
     
+    // Try to authenticate first if credentials are available
+    if (g_username[0] != '\0' && g_password[0] != '\0') {
+        // Create a separate connection for authentication
+        int auth_sock_fd = connect_to_server(g_host, g_port);
+        if (auth_sock_fd < 0) {
+            fprintf(stderr, "Failed to connect for authentication\n");
+            return;
+        }
+        
+        // Authenticate on the separate connection
+        client_authenticate(auth_sock_fd, g_username, g_password);
+        
+        // Close the authentication connection
+        close(auth_sock_fd);
+    }
+    
     // Send MKDIR request
     if (send_request(sock_fd, CMD_MKDIR, path, NULL, 0) != 0) {
         return;
     }
     
     // Receive response
-    if (receive_response(sock_fd, buffer, BUFFER_SIZE, &data_size) != 0) {
+    int result = receive_response(sock_fd, buffer, BUFFER_SIZE, &data_size);
+    if (result == -2) {
+        // Authentication required, prompt for credentials if not already set
+        if (g_username[0] == '\0') {
+            printf("Username: ");
+            fgets(g_username, sizeof(g_username), stdin);
+            g_username[strcspn(g_username, "\n")] = 0; // Remove newline
+        } else {
+            printf("Using username: %s\n", g_username);
+        }
+        
+        if (g_password[0] == '\0') {
+            printf("Password: ");
+            fgets(g_password, sizeof(g_password), stdin);
+            g_password[strcspn(g_password, "\n")] = 0; // Remove newline
+        }
+        
+        // Create a separate connection for authentication
+        int auth_sock_fd = connect_to_server(g_host, g_port);
+        if (auth_sock_fd < 0) {
+            fprintf(stderr, "Failed to connect for authentication\n");
+            return;
+        }
+        
+        // Authenticate on the separate connection
+        client_authenticate(auth_sock_fd, g_username, g_password);
+        
+        // Close the authentication connection
+        close(auth_sock_fd);
+        
+        // Try the original command again
+        client_create_directory(sock_fd, path);
+        return;
+    } else if (result != 0) {
         return;
     }
     
@@ -321,12 +637,33 @@ void client_create_directory(int sock_fd, const char *path) {
     printf("%s\n", buffer);
 }
 
+void client_login(const char *username, const char *password) {
+    int sock_fd = connect_to_server(g_host, g_port);
+    if (sock_fd < 0) {
+        return;
+    }
+    
+    client_authenticate(sock_fd, username, password);
+    close(sock_fd);
+    
+    // Save credentials for future commands
+    strncpy(g_username, username, sizeof(g_username) - 1);
+    g_username[sizeof(g_username) - 1] = '\0';
+    
+    strncpy(g_password, password, sizeof(g_password) - 1);
+    g_password[sizeof(g_password) - 1] = '\0';
+}
+
 void print_usage(const char *program_name) {
     printf("Usage: %s [OPTIONS] COMMAND [ARGS]\n", program_name);
     printf("\nOptions:\n");
-    printf("  -h, --host HOST    Server hostname (default: %s)\n", DEFAULT_HOST);
-    printf("  -p, --port PORT    Server port (default: %d)\n", DEFAULT_PORT);
+    printf("  -h, --host HOST      Server hostname (default: %s)\n", DEFAULT_HOST);
+    printf("  -p, --port PORT      Server port (default: %d)\n", DEFAULT_PORT);
+    printf("  -u, --user USER      Username for authentication\n");
+    printf("  -P, --password PASS  Password for authentication\n");
     printf("\nCommands:\n");
+    printf("  login USERNAME PASSWORD    Authenticate with the server\n");
+    printf("  logout                     Log out from the server\n");
     printf("  list PATH                  List directory contents\n");
     printf("  get REMOTE_PATH LOCAL_PATH Download a file\n");
     printf("  put REMOTE_PATH LOCAL_PATH Upload a file\n");
@@ -335,20 +672,28 @@ void print_usage(const char *program_name) {
 }
 
 int main(int argc, char *argv[]) {
-    const char *host = DEFAULT_HOST;
-    int port = DEFAULT_PORT;
     int i;
     
     // Parse options
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--host") == 0) {
             if (i + 1 < argc) {
-                host = argv[i + 1];
+                strncpy(g_host, argv[i + 1], sizeof(g_host) - 1);
                 i++;
             }
         } else if (strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "--port") == 0) {
             if (i + 1 < argc) {
-                port = atoi(argv[i + 1]);
+                g_port = atoi(argv[i + 1]);
+                i++;
+            }
+        } else if (strcmp(argv[i], "-u") == 0 || strcmp(argv[i], "--user") == 0) {
+            if (i + 1 < argc) {
+                strncpy(g_username, argv[i + 1], sizeof(g_username) - 1);
+                i++;
+            }
+        } else if (strcmp(argv[i], "-P") == 0 || strcmp(argv[i], "--password") == 0) {
+            if (i + 1 < argc) {
+                strncpy(g_password, argv[i + 1], sizeof(g_password) - 1);
                 i++;
             }
         } else {
@@ -363,7 +708,7 @@ int main(int argc, char *argv[]) {
     }
     
     // Connect to server
-    int sock_fd = connect_to_server(host, port);
+    int sock_fd = connect_to_server(g_host, g_port);
     if (sock_fd < 0) {
         return 1;
     }
@@ -371,7 +716,18 @@ int main(int argc, char *argv[]) {
     // Process command
     const char *command = argv[i++];
     
-    if (strcmp(command, "list") == 0) {
+    if (strcmp(command, "login") == 0) {
+        if (i + 1 < argc) {
+            client_login(argv[i], argv[i + 1]);
+        } else {
+            fprintf(stderr, "Error: login command requires USERNAME and PASSWORD\n");
+        }
+    } else if (strcmp(command, "logout") == 0) {
+        client_logout(sock_fd);
+        // Clear credentials
+        g_username[0] = '\0';
+        g_password[0] = '\0';
+    } else if (strcmp(command, "list") == 0) {
         if (i < argc) {
             client_list_directory(sock_fd, argv[i]);
         } else {

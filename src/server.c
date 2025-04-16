@@ -12,6 +12,8 @@
 #include "../include/logger.h"
 #include "../include/file_ops.h"
 #include "../include/protocol.h"
+#include "../include/config.h"
+#include "../include/auth.h"
 
 #define MAX_CLIENTS 100
 #define BUFFER_SIZE 4096
@@ -20,12 +22,15 @@ static int server_fd = -1;
 static struct sockaddr_in server_addr;
 static pthread_t client_threads[MAX_CLIENTS];
 static int client_fds[MAX_CLIENTS];
+static user_role_t client_roles[MAX_CLIENTS];  // Added: Track role for each client
 static int num_clients = 0;
 static pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static void *client_handler(void *arg);
 
 int init_server(int port, int backlog) {
+    server_config_t *config = get_config();
+    
     // Create socket
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
@@ -77,9 +82,20 @@ int init_server(int port, int backlog) {
         return -1;
     }
     
+    // Initialize authentication if enabled
+    if (config->enable_auth) {
+        if (init_auth(config->auth_file) != 0) {
+            log_error("Failed to initialize authentication system");
+            close(server_fd);
+            return -1;
+        }
+        log_info("Authentication system initialized with file: %s", config->auth_file);
+    }
+    
     // Initialize client tracking
     for (int i = 0; i < MAX_CLIENTS; i++) {
         client_fds[i] = -1;
+        client_roles[i] = ROLE_GUEST;  // Default role is guest
     }
     
     log_info("Server initialized on port %d", port);
@@ -108,6 +124,7 @@ int server_process(void) {
             for (int i = 0; i < MAX_CLIENTS; i++) {
                 if (client_fds[i] == -1) {
                     client_fds[i] = client_fd;
+                    client_roles[i] = ROLE_GUEST;  // Initialize as guest
                     
                     // Create thread to handle client
                     if (pthread_create(&client_threads[i], NULL, client_handler, (void *)(intptr_t)i) != 0) {
@@ -155,7 +172,7 @@ int shutdown_server(void) {
     return 0;
 }
 
-int handle_client(int client_fd) {
+int handle_client(int client_fd, int client_index) {
     char buffer[BUFFER_SIZE];
     ssize_t bytes_read;
     
@@ -175,7 +192,7 @@ int handle_client(int client_fd) {
     buffer[bytes_read] = '\0';
     
     // Process request based on protocol
-    return process_request(client_fd, buffer, bytes_read);
+    return process_request(client_fd, buffer, bytes_read, &client_roles[client_index]);
 }
 
 static void *client_handler(void *arg) {
@@ -184,7 +201,7 @@ static void *client_handler(void *arg) {
     
     // Handle client until disconnection
     while (client_fd >= 0) {
-        if (handle_client(client_fd) != 0) {
+        if (handle_client(client_fd, index) != 0) {
             break;
         }
     }
@@ -194,6 +211,7 @@ static void *client_handler(void *arg) {
     if (client_fds[index] >= 0) {
         close(client_fds[index]);
         client_fds[index] = -1;
+        client_roles[index] = ROLE_GUEST;  // Reset role
         num_clients--;
         log_info("Client %d disconnected, total clients: %d", index, num_clients);
     }
