@@ -104,6 +104,7 @@ struct {
     char path[] = "/documents";
 } request;
 ```
+*Note: The server prevents out-of-bounds stack leaks by reliably consuming exactly 7 header bytes explicitly before interpreting dynamic allocations.*
 
 Response:
 ```c

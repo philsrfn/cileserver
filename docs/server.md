@@ -174,8 +174,9 @@ Configuration can be modified at runtime through:
    - File descriptor limits
 
 2. **I/O**
-   - Efficient buffer management
-   - Batch operations
+   - Complete `EOF` streaming decoupling allowing infinite file parsing.
+   - Robust TCP header defragmentation loops circumventing chunk desynchronizations.
+   - Dynamic non-blocking backpressure tracking supporting `EAGAIN` throttling.
    - Asynchronous I/O where possible
    - Caching strategies
 

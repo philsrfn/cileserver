@@ -49,17 +49,18 @@ The authentication file uses a simple text format:
 
 ```
 # Format: username:password_hash:role
-admin:9d8a1f36cdcb0e1dca728a30153dbabd:2
-user:b8e5bf4f32daedc4509c539d53c4fd97:1
-guest:2c4f09fe5a64b67cbfa1b62e287a7f0c:0
+admin:1a2b3c...$9d8a1f36cdcb0e1dca728a30153dbabd:2
+user:a1b2c3...$b8e5bf4f32daedc4509c539d53c4fd97:1
+guest:f1e2d3...$2c4f09fe5a64b67cbfa1b62e287a7f0c:0
 ```
+*Note: The password hash includes a random 16-byte hex `salt` separated by a `$` symbol from the iterative mixed hash.*
 
 When a new authentication file is created, a default admin user is added:
 - Username: `admin`
 - Password: `admin`
 - Role: Admin (2)
 
-**Important:** For security reasons, you should change the default admin password after installation.
+**Important:** For security reasons, you should change the default admin password after installation. All internal user data access is now fully protected against multithreading races using robust mutex locking.
 
 ## Protocol
 

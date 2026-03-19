@@ -2,6 +2,7 @@
 #define FILE_OPS_H
 
 #include <stddef.h>
+#include <time.h>
 
 typedef struct {
     char name[256];
@@ -16,6 +17,16 @@ typedef struct {
  * @return 0 on success, non-zero on failure
  */
 int init_file_ops(void);
+
+/**
+ * Gets a securely resolved absolute path corresponding to a relative path
+ * 
+ * @param relative_path Relative path
+ * @param out_path Output buffer for the resolved path
+ * @param out_size Size of the output buffer
+ * @return 0 on success, non-zero on failure
+ */
+int get_full_path(const char *relative_path, char *out_path, size_t out_size);
 
 /**
  * Clean up file operations resources

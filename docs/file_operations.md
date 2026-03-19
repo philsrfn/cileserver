@@ -6,11 +6,11 @@ The file operations module provides a robust and secure interface for file syste
 
 ## Key Features
 
-- 🔒 **Security**: Path validation and root directory confinement
+- 🔒 **Security**: `realpath()`-based static validation and strict root directory confinement bounding
 - 📁 **Comprehensive**: Full suite of file and directory operations
 - ⚡ **Efficient**: Optimized for performance
 - 🛡️ **Safe**: Proper error handling and resource management
-- 🔄 **Thread-safe**: Safe for concurrent access
+- 🔄 **Thread-safe**: Callers allocate their own buffers, eliminating static buffer race vulnerabilities.
 
 ## API Reference
 
@@ -147,21 +147,23 @@ if (delete_file("/documents/old_file.txt") == 0) {
 
 ### Path Handling
 
-#### `char *get_full_path(const char *relative_path)`
+#### `int get_full_path(const char *relative_path, char *out_path, size_t out_size)`
 
-Converts a relative path to an absolute path within the server's root directory.
+Converts a relative path to a canonical absolute path within the server's root directory securely. It resolves `..` directory leaps natively via Unix `realpath()`.
 
 Parameters:
 - `relative_path`: Relative path
+- `out_path`: Buffer allocated by the caller to store securely canonized path
+- `out_size`: The capacity of `out_path`
 
 Returns:
-- Pointer to the full path (statically allocated)
-- NULL on error
+- `0` on success
+- `-1` on error (e.g. attempted directory traversal outside root)
 
 Example:
 ```c
-const char *full_path = get_full_path("documents/report.txt");
-if (full_path != NULL) {
+char full_path[MAX_PATH_SIZE];
+if (get_full_path("documents/report.txt", full_path, sizeof(full_path)) == 0) {
     printf("Full path: %s\n", full_path);
 }
 ```
@@ -196,9 +198,9 @@ The module uses standard Unix error codes through `errno`. Common errors include
 ### Security Features
 
 1. **Path Validation**
-   - Prevents directory traversal attacks
-   - Ensures paths stay within root directory
-   - Handles symbolic links safely
+   - Canonicalizes completely using Unix system calls (`realpath`).
+   - Absolute strict subset boundaries verifying that the resolved traversal starts exactly with `root_directory`.
+   - Cannot be bypassed with multiple symbolical links mapping outside the container.
 
 2. **Resource Management**
    - Proper file descriptor handling

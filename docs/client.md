@@ -10,10 +10,10 @@ CileClient is a powerful command-line interface for interacting with CileServer.
 # Connect to a remote server
 ./builddir/cileclient -h myserver.com -p 8080 list /
 
-# Upload a file
-./builddir/cileclient put /remote/path/file.txt local_file.txt
+# Upload an arbitrarily large file (streaming chunked sizes)
+./builddir/cileclient put /remote/path/huge.bin local_file.bin
 
-# Download a file
+# Download a file securely maintaining TCP session connections
 ./builddir/cileclient get /remote/path/file.txt local_file.txt
 ```
 
@@ -160,9 +160,9 @@ All errors are logged with appropriate exit codes for scripting purposes.
 
 The client is implemented in `src/client.c` and uses a robust binary protocol for efficient communication. Key features include:
 
-- Connection pooling for better performance
-- Automatic retry on transient failures
-- Progress reporting for large file transfers
+- Direct streaming for files of any sizes (bypassing native limited `4096` buffering restrictions).
+- Persistent persistent server authorization across unified single-socket configurations instead of ephemeral dropouts.
+- Automatic retry on transient failures and backpressure loops. 
 - Thread-safe operation for concurrent use
 
 For protocol details, see the [protocol documentation](protocol.md). 

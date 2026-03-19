@@ -174,22 +174,63 @@ int shutdown_server(void) {
 
 int handle_client(int client_fd, int client_index) {
     char buffer[BUFFER_SIZE];
-    ssize_t bytes_read;
+    ssize_t bytes_read = 0;
     
-    // Read client request
-    bytes_read = read(client_fd, buffer, BUFFER_SIZE - 1);
-    if (bytes_read <= 0) {
-        if (bytes_read < 0) {
-            // Don't treat EAGAIN/EWOULDBLOCK as errors in non-blocking mode
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                return 0;  // Try again later
+    // Read header (7 bytes: 1 cmd + 2 path_len + 4 data_len)
+    while (bytes_read < 7) {
+        ssize_t r = read(client_fd, buffer + bytes_read, 7 - bytes_read);
+        if (r <= 0) {
+            if (r < 0 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)) {
+                usleep(1000);
+                continue;
             }
-            log_error("Error reading from client: %s", strerror(errno));
+            return -1;
         }
+        bytes_read += r;
+    }
+    
+    // Extract path_length (bytes 1 and 2 in network byte order)
+    uint16_t path_length;
+    memcpy(&path_length, buffer + 1, 2);
+    path_length = ntohs(path_length);
+    
+    if (7 + path_length > BUFFER_SIZE) {
+        log_error("Path size exceeds maximum buffer");
         return -1;
     }
     
-    buffer[bytes_read] = '\0';
+    while (bytes_read < 7 + path_length) {
+        ssize_t r = read(client_fd, buffer + bytes_read, (7 + path_length) - bytes_read);
+        if (r <= 0) {
+            if (r < 0 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)) {
+                usleep(1000);
+                continue;
+            }
+            return -1;
+        }
+        bytes_read += r;
+    }
+    
+    // Extract data_length
+    uint32_t data_length;
+    memcpy(&data_length, buffer + 3, 4);
+    data_length = ntohl(data_length);
+    
+    // Try to read as much of the payload as possible into the remaining buffer space
+    size_t remaining_buffer = BUFFER_SIZE - (7 + path_length);
+    size_t to_read_payload = data_length < remaining_buffer ? data_length : remaining_buffer;
+    
+    while (bytes_read < (ssize_t)(7 + path_length + to_read_payload)) {
+        ssize_t r = read(client_fd, buffer + bytes_read, (7 + path_length + to_read_payload) - bytes_read);
+        if (r <= 0) {
+            if (r < 0 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)) {
+                usleep(1000);
+                continue;
+            }
+            return -1;
+        }
+        bytes_read += r;
+    }
     
     // Process request based on protocol
     return process_request(client_fd, buffer, bytes_read, &client_roles[client_index]);

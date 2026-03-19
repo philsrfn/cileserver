@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <pthread.h>
 #include "../include/auth.h"
 #include "../include/logger.h"
 #include "../include/protocol.h"
@@ -11,28 +12,48 @@
 #define LINE_BUFFER_SIZE 256
 #define SALT_SIZE 16
 
-// Simple hash function (SHA-256 would be better in a real implementation)
-static void hash_password(const char *password, char *output, size_t output_size) {
-    unsigned char hash[32];
-    unsigned int i;
-    size_t password_len = strlen(password);
+static pthread_mutex_t auth_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Simple salted hash function for demonstration (should use bcrypt/SHA-256 in production)
+static void hash_password(const char *password, const char *salt, char *output, size_t output_size) {
+    unsigned char hash[32] = {0};
+    size_t pass_len = strlen(password);
+    size_t salt_len = strlen(salt);
     
-    // This is a simple hash for demonstration purposes
-    // In a real implementation, use a secure hash function like SHA-256 with a salt
-    for (i = 0; i < 32; i++) {
-        hash[i] = (password[i % password_len] + i) % 256;
+    // Mix password and salt
+    for (int round = 0; round < 1000; round++) {
+        for (size_t i = 0; i < 32; i++) {
+            unsigned char p_char = (pass_len > 0) ? password[(i + round) % pass_len] : 0;
+            unsigned char s_char = (salt_len > 0) ? salt[(i * round) % salt_len] : 0;
+            hash[i] = (hash[i] + p_char + s_char + round) % 256;
+            // Additional mixing
+            hash[i] ^= (hash[(i + 1) % 32] >> 1) | (hash[(i + 2) % 32] << 7);
+        }
     }
     
     // Convert to hex string
-    for (i = 0; i < 32 && i*2+1 < output_size; i++) {
+    for (size_t i = 0; i < 32 && i*2+1 < output_size; i++) {
         sprintf(output + i*2, "%02x", hash[i]);
     }
     output[output_size-1] = '\0';
-    
-    log_debug("Generated hash for password '%s': %s", password, output);
+}
+
+// Generate random salt
+static void generate_salt(char *salt_hex) {
+    unsigned char salt[SALT_SIZE];
+    for (int i = 0; i < SALT_SIZE; i++) {
+        salt[i] = random() % 256;
+    }
+    for (int i = 0; i < SALT_SIZE; i++) {
+        sprintf(salt_hex + i*2, "%02x", salt[i]);
+    }
+    salt_hex[SALT_SIZE*2] = '\0';
 }
 
 static user_t users[MAX_USERS];
+// Add a parallel array for salts to keep structure intact or embed in hash field
+// We'll embed it as salt$hash to keep the single password_hash field format
+// password_hash will now be: 32 chars salt + '$' + 64 chars hash (total < 100 chars, password_hash is 256)
 static int num_users = 0;
 static char auth_file_path[1024] = "";
 
@@ -46,6 +67,9 @@ int init_auth(const char *auth_file) {
         return -1;
     }
     
+    srandom(time(NULL) ^ getpid()); // seeded for salt gen
+    
+    pthread_mutex_lock(&auth_mutex);
     strncpy(auth_file_path, auth_file, sizeof(auth_file_path) - 1);
     auth_file_path[sizeof(auth_file_path) - 1] = '\0';
     
@@ -54,24 +78,20 @@ int init_auth(const char *auth_file) {
     if (file == NULL) {
         log_warning("Authentication file %s not found, creating new file", auth_file_path);
         
-        // Create default admin user if file doesn't exist
+        // Temporarily unlock to avoid deadlock with add_user
+        pthread_mutex_unlock(&auth_mutex);
         add_user("admin", "admin", ROLE_ADMIN);
         save_auth_file();
-        
         return 0;
     }
     
+    num_users = 0;
     // Parse each line (format: username:password_hash:role)
     while (fgets(line, sizeof(line), file) != NULL && num_users < MAX_USERS) {
-        // Skip comments and empty lines
-        if (line[0] == '#' || line[0] == '\n') {
-            continue;
-        }
+        if (line[0] == '#' || line[0] == '\n') continue;
         
-        // Remove newline
         line[strcspn(line, "\n")] = 0;
         
-        // Split line
         username = strtok_r(line, ":", &saveptr);
         password_hash = strtok_r(NULL, ":", &saveptr);
         role_str = strtok_r(NULL, ":", &saveptr);
@@ -80,91 +100,102 @@ int init_auth(const char *auth_file) {
             strncpy(users[num_users].username, username, sizeof(users[num_users].username) - 1);
             strncpy(users[num_users].password_hash, password_hash, sizeof(users[num_users].password_hash) - 1);
             users[num_users].role = (user_role_t)atoi(role_str);
-            log_debug("Loaded user: %s, hash: %s, role: %d", 
-                      users[num_users].username, 
-                      users[num_users].password_hash, 
-                      users[num_users].role);
             num_users++;
         }
     }
     
     fclose(file);
-    log_info("Loaded %d users from authentication file", num_users);
+    pthread_mutex_unlock(&auth_mutex);
     
+    log_info("Loaded %d users from authentication file", num_users);
     return 0;
 }
 
 int authenticate_user(const char *username, const char *password, user_role_t *role) {
-    char hash[128];
-    int i;
-    
     if (username == NULL || password == NULL || role == NULL) {
-        log_error("Invalid authentication parameters");
         return -1;
     }
     
-    log_debug("Attempting authentication for user: %s with password: %s", username, password);
-    
-    hash_password(password, hash, sizeof(hash));
-    log_debug("Calculated hash: %s", hash);
-    
-    log_debug("Number of users in database: %d", num_users);
-    for (i = 0; i < num_users; i++) {
-        log_debug("Checking against user[%d]: %s, hash: %s", i, users[i].username, users[i].password_hash);
-        
+    pthread_mutex_lock(&auth_mutex);
+    for (int i = 0; i < num_users; i++) {
         if (strcmp(users[i].username, username) == 0) {
-            log_debug("Username match found for %s", username);
-            
-            if (strcmp(users[i].password_hash, hash) == 0) {
-                *role = users[i].role;
-                log_info("User %s authenticated successfully with role %d", username, *role);
-                return 0;
+            // Check if hash contains salt
+            char *salt_sep = strchr(users[i].password_hash, '$');
+            if (salt_sep != NULL) {
+                // Salted hash
+                char salt[64];
+                size_t salt_len = salt_sep - users[i].password_hash;
+                strncpy(salt, users[i].password_hash, salt_len);
+                salt[salt_len] = '\0';
+                
+                char hash_out[128];
+                hash_password(password, salt, hash_out, sizeof(hash_out));
+                
+                if (strcmp(salt_sep + 1, hash_out) == 0) {
+                    *role = users[i].role;
+                    pthread_mutex_unlock(&auth_mutex);
+                    return 0;
+                }
             } else {
-                log_warning("Authentication failed for user %s: incorrect password (expected hash: %s, got: %s)", 
-                           username, users[i].password_hash, hash);
-                return -1;
+                // Legacy unsalted logic (just in case they have an old file)
+                char hash_out[128];
+                hash_password(password, "", hash_out, sizeof(hash_out));
+                if (strcmp(users[i].password_hash, hash_out) == 0) {
+                    *role = users[i].role;
+                    pthread_mutex_unlock(&auth_mutex);
+                    return 0;
+                }
             }
+            break;
         }
     }
+    pthread_mutex_unlock(&auth_mutex);
     
-    log_warning("Authentication failed: user %s not found", username);
+    log_warning("Authentication failed for user %s", username);
     return -1;
 }
 
 int add_user(const char *username, const char *password, user_role_t role) {
-    int i;
+    if (username == NULL || password == NULL) return -1;
     
-    if (username == NULL || password == NULL || num_users >= MAX_USERS) {
+    pthread_mutex_lock(&auth_mutex);
+    if (num_users >= MAX_USERS) {
+        pthread_mutex_unlock(&auth_mutex);
         return -1;
     }
     
     // Check if user already exists
-    for (i = 0; i < num_users; i++) {
+    for (int i = 0; i < num_users; i++) {
         if (strcmp(users[i].username, username) == 0) {
-            log_warning("User %s already exists", username);
+            pthread_mutex_unlock(&auth_mutex);
             return -1;
         }
     }
     
     // Add new user
     strncpy(users[num_users].username, username, sizeof(users[num_users].username) - 1);
-    hash_password(password, users[num_users].password_hash, sizeof(users[num_users].password_hash));
+    
+    char salt[64];
+    generate_salt(salt);
+    
+    char hash_out[128];
+    hash_password(password, salt, hash_out, sizeof(hash_out));
+    
+    snprintf(users[num_users].password_hash, sizeof(users[num_users].password_hash), "%s$%s", salt, hash_out);
     users[num_users].role = role;
     num_users++;
     
+    pthread_mutex_unlock(&auth_mutex);
     log_info("Added user %s with role %d", username, role);
     return 0;
 }
 
 int remove_user(const char *username) {
-    int i, found = -1;
+    if (username == NULL) return -1;
     
-    if (username == NULL) {
-        return -1;
-    }
-    
-    // Find user
-    for (i = 0; i < num_users; i++) {
+    pthread_mutex_lock(&auth_mutex);
+    int found = -1;
+    for (int i = 0; i < num_users; i++) {
         if (strcmp(users[i].username, username) == 0) {
             found = i;
             break;
@@ -172,40 +203,37 @@ int remove_user(const char *username) {
     }
     
     if (found < 0) {
-        log_warning("User %s not found", username);
+        pthread_mutex_unlock(&auth_mutex);
         return -1;
     }
     
-    // Remove user by shifting array
-    for (i = found; i < num_users - 1; i++) {
+    for (int i = found; i < num_users - 1; i++) {
         memcpy(&users[i], &users[i+1], sizeof(user_t));
     }
     
     num_users--;
-    log_info("Removed user %s", username);
+    pthread_mutex_unlock(&auth_mutex);
     
     return 0;
 }
 
 int save_auth_file(void) {
-    FILE *file;
-    int i;
-    
+    pthread_mutex_lock(&auth_mutex);
     if (auth_file_path[0] == '\0') {
-        log_error("Authentication file path not set");
+        pthread_mutex_unlock(&auth_mutex);
         return -1;
     }
     
-    file = fopen(auth_file_path, "w");
+    FILE *file = fopen(auth_file_path, "w");
     if (file == NULL) {
-        log_error("Failed to open authentication file for writing");
+        pthread_mutex_unlock(&auth_mutex);
         return -1;
     }
     
     fprintf(file, "# CileServer Authentication File\n");
     fprintf(file, "# Format: username:password_hash:role\n");
     
-    for (i = 0; i < num_users; i++) {
+    for (int i = 0; i < num_users; i++) {
         fprintf(file, "%s:%s:%d\n", 
                 users[i].username, 
                 users[i].password_hash, 
@@ -213,18 +241,13 @@ int save_auth_file(void) {
     }
     
     fclose(file);
-    log_info("Saved %d users to authentication file", num_users);
-    
+    pthread_mutex_unlock(&auth_mutex);
     return 0;
 }
 
 int check_permission(user_role_t role, int operation) {
-    // Admin can do everything
-    if (role == ROLE_ADMIN) {
-        return 1;
-    }
+    if (role == ROLE_ADMIN) return 1;
     
-    // Users can do most operations
     if (role == ROLE_USER) {
         switch (operation) {
             case CMD_LIST:
@@ -239,7 +262,6 @@ int check_permission(user_role_t role, int operation) {
         }
     }
     
-    // Guests can only read
     if (role == ROLE_GUEST) {
         switch (operation) {
             case CMD_LIST:
@@ -252,4 +274,4 @@ int check_permission(user_role_t role, int operation) {
     }
     
     return 0;
-} 
+}
