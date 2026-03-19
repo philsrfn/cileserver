@@ -2,7 +2,7 @@
 bin/
 obj/
 builddir/
-
+build/
 # Meson build files
 .mesonpy-native-file.ini
 
